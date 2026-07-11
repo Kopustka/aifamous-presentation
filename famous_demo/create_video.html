@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Create Video</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Model picker ─────────────────────────────────── */
+/* 3D model carousel — same pattern as main.html */
+.cv-models-viewport{height:200px;position:relative;overflow:visible;margin-bottom:10px;perspective:1200px;}
+.cv-models-track{height:100%;position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,.61,.36,1);}
+.cv-model-card{position:absolute;top:50%;left:50%;width:130px;height:175px;border-radius:20px;overflow:hidden;cursor:grab;user-select:none;transition:all .5s cubic-bezier(.22,.61,.36,1);will-change:transform;box-shadow:0 16px 32px -10px rgba(0,0,0,0.5);}
+.cv-model-card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;}
+.cv-model-card::after{content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,0.85) 100%);pointer-events:none;}
+.cv-model-card .m-name{position:absolute;bottom:10px;left:10px;right:10px;font-family:var(--font-heavy);font-size:14px;letter-spacing:-0.02em;color:#fff;line-height:1;z-index:2;}
+.cv-model-card.active{z-index:10;box-shadow:0 24px 48px -10px rgba(0,0,0,0.8),0 0 0 2px var(--brand);}
+.cv-model-card.active .m-name{font-size:16px;}
+.cv-models-dots{display:flex;gap:6px;justify-content:center;margin-top:8px;margin-bottom:4px;}
+.cv-models-dots .dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.2);transition:background .3s,width .3s;cursor:pointer;}
+.cv-models-dots .dot.active{background:var(--brand);width:18px;border-radius:3px;}
+.cv-picker-name{text-align:center;margin-top:10px;font-family:var(--font-heavy);font-size:16px;color:#fff;letter-spacing:-0.01em;text-transform:uppercase;padding:0 20px;}
+
+/* ── Type selector ────────────────────────────────── */
+.cv-type-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px;margin-top:20px;}
+.cv-type{padding:14px 12px;border-radius:16px;cursor:pointer;background:rgba(255,255,255,0.03);border:1.5px solid var(--line);transition:all .25s;position:relative;overflow:hidden;}
+.cv-type:hover{border-color:rgba(255,255,255,0.25);}
+.cv-type.active{background:linear-gradient(135deg,rgba(61,255,110,0.15),rgba(61,255,110,0.05));border-color:var(--brand);}
+.cv-type .t-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.cv-type .t-icon svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;}
+.cv-type.active .t-icon{background:var(--brand);}
+.cv-type.active .t-icon svg{stroke:#000;}
+.cv-type .t-name{font-family:var(--font-heavy);font-size:12px;letter-spacing:-0.01em;color:#fff;line-height:1.1;}
+.cv-type .t-desc{font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:0.03em;margin-top:4px;line-height:1.4;}
+.cv-type .t-check{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--brand);display:none;align-items:center;justify-content:center;}
+.cv-type.active .t-check{display:flex;}
+.cv-type .t-check svg{width:10px;height:10px;stroke:#000;fill:none;stroke-width:3;}
+
+/* ── Reference slot ───────────────────────────────── */
+.cv-ref-label{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;padding:0 20px;margin-top:20px;margin-bottom:10px;}
+.cv-ref-slot{
+  margin:0 auto;aspect-ratio:9/16;width:min(62vw,220px);border-radius:20px;background:rgba(255,255,255,0.03);
+  border:1.5px dashed rgba(255,255,255,0.15);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;color:var(--text-dim);
+  cursor:pointer;overflow:hidden;position:relative;transition:all .2s;
+}
+.cv-ref-slot:hover{border-color:var(--brand);color:var(--brand);background:rgba(61,255,110,0.04);}
+.cv-ref-slot.drag-over{border-color:var(--brand);border-style:solid;color:var(--brand);background:rgba(61,255,110,0.1);transform:scale(1.02);}
+.cv-ref-slot.drag-over .rs-empty svg{transform:translateY(-5px) scale(1.15);filter:drop-shadow(0 0 8px rgba(61,255,110,0.6));}
+.cv-ref-slot.drag-over .rs-label{color:var(--brand);}
+.cv-ref-slot .rs-empty{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1;pointer-events:none;}
+.cv-ref-slot .rs-empty svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.5;transition:transform .2s,filter .2s;}
+.cv-ref-slot .rs-label{font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;}
+.cv-ref-slot .rs-hint{font-family:var(--font-mono);font-size:9px;color:var(--text-mute);}
+.cv-ref-slot video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0;}
+/* Native file input fills the slot — every tap is a real user-gesture click on <input>, so iOS never swallows the picker */
+.cv-ref-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:3;font-size:0;color:transparent;border:0;border-radius:inherit;}
+.cv-ref-input::-webkit-file-upload-button{display:none;}
+.slot-clear{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5;padding:0;font-size:16px;line-height:1;}
+.slot-clear.visible{display:flex;}
+.slot-clear:hover{background:rgba(0,0,0,0.85);border-color:var(--brand);}
+
+/* ── Quality picker ──────────────────────────────── */
+.cv-quality-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 20px;}
+.cv-quality{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:14px;background:rgba(255,255,255,0.03);border:1.5px solid var(--line);font-family:var(--font-heavy);font-size:13px;color:#fff;letter-spacing:-0.01em;cursor:pointer;transition:all .2s;}
+.cv-quality span{font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--text-mute);letter-spacing:0.06em;}
+.cv-quality:hover{border-color:rgba(255,255,255,0.25);}
+.cv-quality.active{background:linear-gradient(135deg,rgba(61,255,110,0.15),rgba(61,255,110,0.05));border-color:var(--brand);color:var(--brand);}
+.cv-quality.active span{color:var(--brand);}
+.cv-quality.locked{opacity:0.4;cursor:not-allowed;position:relative;}
+.cv-quality.locked::after{content:"🔒";position:absolute;top:4px;right:6px;font-size:9px;}
+.cv-quality.locked:hover{border-color:var(--line);}
+
+/* ── Cost card ────────────────────────────────────── */
+.cost-card{margin:16px 20px 0;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(61,255,110,0.08),rgba(61,255,110,0.02));border:1px solid rgba(61,255,110,0.2);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.cost-card .c-left{display:flex;align-items:center;gap:10px;}
+.cost-card .c-icon{width:32px;height:32px;border-radius:10px;background:rgba(61,255,110,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--brand);}
+.cost-card .c-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+.cost-card .c-text .c-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;}
+.cost-card .c-text .c-val{font-family:var(--font-heavy);font-size:18px;color:#fff;letter-spacing:-0.02em;margin-top:2px;}
+.cost-card .c-text .c-val .unit{font-family:var(--font-mono);font-size:10px;color:var(--brand);margin-left:4px;font-weight:500;}
+.cost-card .c-eta{text-align:right;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.04em;}
+.cost-card .c-eta strong{color:#fff;font-weight:700;display:block;font-size:12px;}
+/* Insufficient balance — красный вариант */
+.cost-card.no-funds{background:linear-gradient(135deg,rgba(255,77,109,0.12),rgba(255,77,109,0.03));border-color:rgba(255,77,109,0.4);}
+.cost-card.no-funds .c-icon{background:rgba(255,77,109,0.18);color:var(--danger);}
+.cost-card.no-funds .c-text .c-val{color:var(--danger);}
+.cost-card.no-funds .c-text .c-val .unit{color:var(--danger);}
+.cost-card.no-funds .c-eta strong{color:var(--danger);}
+.cost-card .c-hint{display:none;margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--danger);letter-spacing:0.02em;line-height:1.4;}
+.cost-card.no-funds .c-hint{display:block;}
+/* Кнопка при отсутствии токенов — приглушённый серый в стиле тёмной темы */
+.generate-big.no-funds{
+  background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
+  color:var(--text-mute);box-shadow:none;cursor:not-allowed;
+  border:1px solid var(--line);
+}
+.generate-big.no-funds:hover{transform:none;box-shadow:none;}
+.generate-big.no-funds svg path{fill:var(--text-mute);}
+.generate-big.no-funds::before{display:none;}
+
+/* ── Status message ───────────────────────────────── */
+.status-msg{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);min-height:16px;padding:8px 20px 0;}
+
+/* ── System status modal ──────────────────────────── */
+.sys-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;}
+.sys-lbl{font-size:9px;color:#555;letter-spacing:0.1em;margin-bottom:6px;margin-top:12px;}
+@keyframes cvFlashRing{0%{box-shadow:0 16px 32px -10px rgba(0,0,0,.5),0 0 0 0px rgba(61,255,110,0);}40%{box-shadow:0 16px 32px -10px rgba(0,0,0,.5),0 0 0 3px rgba(61,255,110,1),0 0 22px rgba(61,255,110,.5);}100%{box-shadow:0 16px 32px -10px rgba(0,0,0,.5),0 0 0 0px rgba(61,255,110,0);}}
+.cv-flash-ring{animation:cvFlashRing 0.7s ease-out forwards!important;}
+@keyframes cvFlashBg{0%{background-color:rgba(61,255,110,0);}40%{background-color:rgba(61,255,110,.25);}100%{background-color:rgba(61,255,110,0);}}
+.cv-flash-bg{animation:cvFlashBg 0.7s ease-out forwards!important;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" onclick="goBack()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title" id="pageTitle">Create Video</div>
+    <div class="sub-step" id="sysStatusBtn" onclick="openSysModal()" style="display:none">STATUS</div>
+  </div>
+
+  <!-- Form content (shown before generation) -->
+  <div class="app-scroll" id="formSection">
+
+    <!-- Initial loader (hidden after models load) -->
+    <div id="formLoader" style="display:flex;align-items:center;justify-content:center;min-height:60vh;">
+      <div class="loading-ring"></div>
+    </div>
+
+    <!-- Actual form (hidden until models loaded) -->
+    <div id="formContent" style="display:none">
+
+    <!-- Model picker -->
+    <div id="cvSec1" style="padding:20px 0 0">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;padding:0 20px;margin-bottom:10px">Pick model</div>
+    </div>
+    <div class="cv-models-viewport" id="cvModelsViewport">
+      <div class="cv-models-track" id="cvModelsTrack"></div>
+    </div>
+    <div class="cv-models-dots" id="cvModelsDots"></div>
+    <div class="cv-picker-name" id="cvPickerName">—</div>
+
+    <!-- Type selector -->
+    <div id="cvSec2" style="font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;padding:20px 20px 0">Generation type</div>
+    <div class="cv-type-row">
+      <div class="cv-type active" data-type="face_cloth_replacement" onclick="selectType(this)">
+        <div class="t-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>
+        <div class="t-icon"><svg viewBox="0 0 24 24"><path d="M20 8l-4-4h-3a3 3 0 0 1-6 0H4L0 8l4 4 2-2v9h12v-9l2 2z"/></svg></div>
+        <div class="t-name">Face & Clothes</div>
+        <div class="t-desc">Swap face and<br>replace outfit</div>
+      </div>
+      <div class="cv-type" data-type="face_replacement" onclick="selectType(this)">
+        <div class="t-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>
+        <div class="t-icon"><svg viewBox="0 0 24 24"><path d="M12 2c4 0 8 3 8 8 0 6-8 12-8 12S4 16 4 10c0-5 4-8 8-8z"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/></svg></div>
+        <div class="t-name">Face only</div>
+        <div class="t-desc">Keep original<br>clothing</div>
+      </div>
+    </div>
+
+    <!-- Reference video -->
+    <div id="cvSec3" class="cv-ref-label">Reference video (required)</div>
+    <div class="cv-ref-slot" id="refSlot">
+      <div class="rs-empty" id="rsEmpty">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10" style="transform:scale(1,-1);transform-origin:12px 12.5px"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="rs-label">Drag & drop</div>
+        <div class="rs-hint">or tap to select video</div>
+      </div>
+      <input type="file" id="videoInput" accept="video/*" class="cv-ref-input" aria-label="Upload reference video">
+      <button class="slot-clear" id="slotClear" onclick="clearRef(event)" aria-label="Remove video">×</button>
+    </div>
+
+    <!-- Quality -->
+    <div id="cvSec4" class="cv-ref-label" style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;padding-right:20px">
+      <span>Quality</span>
+      <span id="planHint" style="font-family:var(--font-mono);font-size:9px;color:var(--text-mute);letter-spacing:0.04em;text-transform:none;"></span>
+    </div>
+    <div class="cv-quality-row" id="cvQualityRow">
+      <div class="cv-quality active" data-q="480">480p<span>SD</span></div>
+      <div class="cv-quality" data-q="720">720p<span>HD</span></div>
+      <div class="cv-quality" data-q="1080">1080p<span>FHD</span></div>
+    </div>
+    <div id="qualityLockHint" style="display:none;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.02em;padding:8px 20px 0;text-align:center;">
+      <span id="qualityLockText"></span>
+      <span id="upgradePlanBtn" onclick="location.href='subscription.html'" style="color:var(--brand);font-weight:700;cursor:pointer;text-decoration:underline">Upgrade plan →</span>
+    </div>
+
+    <!-- Prompt -->
+    <div id="cvPromptLabel" class="cv-ref-label" style="margin-top:20px">Prompt (optional)</div>
+    <div style="padding:0 20px">
+      <textarea class="prompt-box" id="promptBox" placeholder="Add extra details (outfit, setting, vibe)..." style="height:80px"></textarea>
+      <div class="prompt-chips">
+        <div class="prompt-chip" onclick="addChip('red silk dress')">Red silk dress</div>
+        <div class="prompt-chip" onclick="addChip('paris rooftop')">Paris rooftop</div>
+        <div class="prompt-chip" onclick="addChip('neon alley')">Neon alley</div>
+        <div class="prompt-chip" onclick="addChip('beach sunset')">Beach sunset</div>
+      </div>
+    </div>
+
+    <!-- Cost -->
+    <div class="cost-card" id="costCard" onclick="location.href='subscription.html'" style="cursor:pointer">
+      <div class="c-left">
+        <div class="c-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg></div>
+        <div class="c-text">
+          <div class="c-lbl">Cost</div>
+          <div class="c-val"><span id="costVal">10</span><span class="unit">tokens</span></div>
+          <div id="costSub" style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:0.04em">Balance: —</div>
+          <div class="c-hint" id="costHint">Not enough tokens — tap to top up</div>
+        </div>
+      </div>
+      <div class="c-eta"><strong id="etaVal">~10–15 min</strong>ETA</div>
+    </div>
+
+    <div style="padding:0 20px">
+      <button class="generate-big" id="generateBtn" onclick="generate()">
+        <svg viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z" fill="#001b08"/></svg>
+        Generate now
+      </button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+    <div style="height:30px"></div>
+
+    </div><!-- /formContent -->
+  </div>
+
+  <!-- Generation progress (hidden initially) -->
+  <div class="app-scroll" id="genSection" style="display:none">
+    <div class="gen-wrap">
+      <div class="gen-frame" id="genFrame">
+        <div class="gen-wave-dots"><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div></div>
+        <video id="genResultVideo" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover" muted loop playsinline></video>
+        <div class="gen-overlay-text">
+          <div class="g-stage" id="genStage">ИНИЦИАЛИЗАЦИЯ</div>
+          <div id="genSub">Разогрев…</div>
+        </div>
+      </div>
+
+      <div class="gen-header">
+        <div class="g-name" id="genName">Лицо и одежда · —</div>
+        <div class="g-elapsed" id="genTimer">00:00</div>
+      </div>
+
+      <div class="gen-bar-wrap"><div class="gen-bar-fill" id="genBarFill" style="width:0%"></div></div>
+      <div class="gen-bar-meta">
+        <span class="g-pct"><span id="genPct">0</span>%</span>
+        <span id="genEta">≈12 мин</span>
+      </div>
+
+      <div class="stepper" id="genStepper"></div>
+
+      <div class="gen-tip-card">
+        <div class="tip-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z" fill="currentColor" stroke="none"/></svg></div>
+        <div class="tip-content">
+          <div class="t-lbl">Совет</div>
+          <div class="t-txt" id="genTip">«Лицо + одежда» — лучшее удержание в виральных видео.</div>
+        </div>
+      </div>
+
+      <div class="gen-actions" id="genActions">
+        <button class="btn-ghost" id="minimizeBtn">Свернуть в фон</button>
+        <button class="btn-danger" id="stopBtn" onclick="stopGeneration()">Отмена</button>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center active" onclick="void(0)">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- System status modal -->
+<div class="sys-modal-overlay" id="sysModal" onclick="closeSysModal()">
+  <div class="sys-modal-box" onclick="event.stopPropagation()">
+    <div class="sys-modal-head"><span>SYSTEM STATUS</span><button class="sys-modal-close" onclick="closeSysModal()">×</button></div>
+    <div id="sysModalContent"><div class="loading-ring" style="margin:20px auto;width:24px;height:24px;border-width:2px"></div></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<!-- Confetti -->
+<div class="confetti" id="confetti"></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+function goBack(){ history.back(); }
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ── Models ──────────────────────────────────────── */
+let allModels=[], selectedModelIdx=0, selectedType='face_cloth_replacement';
+
+async function loadModels(){
+  try{
+    const res=await fetch('/api/models',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    allModels=await res.json();
+  }catch(e){allModels=[];}
+  renderPicker();
+}
+
+function renderPicker(){
+  document.getElementById('formLoader').style.display='none';
+  if(!allModels.length){
+    document.getElementById('formSection').innerHTML=`
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px 32px;text-align:center;">
+        <div style="width:80px;height:80px;border-radius:50%;background:rgba(61,255,110,0.08);border:1.5px solid rgba(61,255,110,0.2);display:flex;align-items:center;justify-content:center;margin-bottom:24px;">
+          <svg viewBox="0 0 24 24" style="width:34px;height:34px;stroke:var(--brand);fill:none;stroke-width:1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/><path d="M19 8l2 2-2 2M5 8l-2 2 2 2" stroke-linecap="round"/></svg>
+        </div>
+        <div style="font-family:var(--font-heavy);font-size:26px;letter-spacing:-0.03em;color:#fff;line-height:1.1;margin-bottom:12px;">No models yet</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim);line-height:1.7;letter-spacing:0.02em;max-width:260px;margin-bottom:32px;">Create your first AI model from photos — then generate unlimited videos with your face in any scene.</div>
+        <button onclick="location.href='create_model.html'" style="display:flex;align-items:center;gap:10px;background:var(--brand);color:#000;border:none;border-radius:999px;padding:16px 32px;font-family:var(--font-mono);font-size:13px;font-weight:700;letter-spacing:0.06em;cursor:pointer;transition:opacity .18s;" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#000;fill:none;stroke-width:2.5"><path d="M12 5v14M5 12h14"/></svg>
+          CREATE MODEL
+        </button>
+      </div>`;
+    return;
+  }
+  document.getElementById('formContent').style.display='block';
+  if(window.pageStagger) window.pageStagger(document.getElementById('formContent'));
+  const savedId=sessionStorage.getItem('selectedModelId');
+  if(savedId){const f=allModels.findIndex(m=>String(m.id)===String(savedId));if(f>=0)selectedModelIdx=f;}
+
+  const track=document.getElementById('cvModelsTrack');
+  const viewport=document.getElementById('cvModelsViewport');
+  track.innerHTML=allModels.map((m,i)=>`
+    <div class="cv-model-card" data-i="${i}" onclick="selectModel(${i})">
+      <img src="${m.preview_url||''}" alt="${m.name}" onerror="this.style.opacity=0">
+      ${m.name?`<div class="m-name">${m.name}</div>`:''}
+    </div>`).join('');
+
+  layoutPicker(); renderPickerDots(); updatePickerName();
+
+  let startX=0,startIdx=0,dragging=false;
+  viewport.addEventListener('touchstart',e=>{dragging=true;startX=e.touches[0].clientX;startIdx=selectedModelIdx;},{passive:true});
+  viewport.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const dx=e.touches[0].clientX-startX;
+    if(Math.abs(dx)>40){const dir=dx>0?-1:1;const next=Math.max(0,Math.min(allModels.length-1,startIdx+dir));if(next!==selectedModelIdx){selectModel(next);}startX=e.touches[0].clientX;startIdx=selectedModelIdx;}
+  },{passive:true});
+  viewport.addEventListener('touchend',()=>{dragging=false;});
+  viewport.addEventListener('mousedown',e=>{dragging=true;startX=e.clientX;startIdx=selectedModelIdx;});
+  window.addEventListener('mousemove',e=>{if(!dragging)return;const dx=e.clientX-startX;if(Math.abs(dx)>40){const dir=dx>0?-1:1;const next=Math.max(0,Math.min(allModels.length-1,startIdx+dir));if(next!==selectedModelIdx){selectModel(next);}startX=e.clientX;startIdx=selectedModelIdx;}});
+  window.addEventListener('mouseup',()=>{dragging=false;});
+}
+
+function selectModel(i){
+  selectedModelIdx=i;
+  layoutPicker(); renderPickerDots(); updatePickerName();
+}
+
+function layoutPicker(){
+  document.querySelectorAll('.cv-model-card').forEach((el,i)=>{
+    const offset=i-selectedModelIdx, abs=Math.abs(offset);
+    const tx=offset*100, rotY=offset*-22;
+    const scale=abs===0?1:abs===1?0.82:0.65;
+    const opacity=abs===0?1:abs===1?0.7:0.35;
+    el.style.transform=`translate(calc(-50% + ${tx}px), -50%) rotateY(${rotY}deg) scale(${scale})`;
+    el.style.opacity=opacity;
+    el.style.zIndex=10-abs;
+    el.classList.toggle('active',abs===0);
+  });
+}
+
+function renderPickerDots(){
+  const dotsEl=document.getElementById('cvModelsDots');
+  dotsEl.innerHTML=allModels.map((_,i)=>`<div class="dot${i===selectedModelIdx?' active':''}" onclick="selectModel(${i})"></div>`).join('');
+}
+
+function updatePickerName(){
+  const m=allModels[selectedModelIdx];
+  document.getElementById('cvPickerName').textContent=m?m.name.toUpperCase():'—';
+  if(m){
+    sessionStorage.setItem('selectedModelId',m.id);
+    sessionStorage.setItem('selectedModelName',m.name);
+    sessionStorage.setItem('selectedModelPreview',m.preview_url||'');
+  }
+}
+
+function selectType(el){
+  selectedType=el.dataset.type;
+  document.querySelectorAll('.cv-type').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ── Subscription state ─────────────────────────────────── */
+let _sub=null; // {plan, plan_name, tokens_balance, video_gen_cost, max_duration_sec, allowed_quality, ...}
+let selectedQuality='480';
+
+async function loadSubscription(){
+  try{
+    const r=await fetch('/api/subscription',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    _sub=d.current;
+  }catch(e){}
+  applyPlanLimits();
+}
+
+function applyPlanLimits(){
+  if(!_sub) return;
+  const allowed=new Set(_sub.allowed_quality||['480']);
+
+  // Lock quality buttons not in plan
+  document.querySelectorAll('.cv-quality').forEach(q=>{
+    const allow=allowed.has(q.dataset.q);
+    q.classList.toggle('locked', !allow);
+  });
+
+  // Auto-select highest allowed quality if current selection locked
+  if(!allowed.has(selectedQuality)){
+    const arr=Array.from(document.querySelectorAll('.cv-quality')).filter(q=>!q.classList.contains('locked'));
+    if(arr.length){
+      selectedQuality=arr[arr.length-1].dataset.q;
+      document.querySelectorAll('.cv-quality').forEach(q=>q.classList.toggle('active', q.dataset.q===selectedQuality));
+    }
+  }
+
+  // Update reference duration limit
+  if(_sub.max_duration_sec){
+    MAX_REF_DURATION_SEC=_sub.max_duration_sec;
+  }
+
+  // Update hint and cost
+  const hint=document.getElementById('planHint');
+  if(hint){
+    hint.textContent=(_sub.plan_name||'Free')+' plan · up to '+_sub.max_duration_sec+'s';
+  }
+  const lockHint=document.getElementById('qualityLockHint');
+  const lockText=document.getElementById('qualityLockText');
+  const lockedQs=Array.from(document.querySelectorAll('.cv-quality.locked')).map(q=>q.dataset.q+'p');
+  if(lockHint && lockText){
+    if(lockedQs.length){
+      lockText.textContent=lockedQs.join(', ')+' is locked on '+(_sub.plan_name||'Free')+'. ';
+      lockHint.style.display='block';
+    } else {
+      lockHint.style.display='none';
+    }
+  }
+
+  // Update cost card (depends on currently selected quality)
+  updateCostForQuality();
+  const costSub=document.getElementById('costSub');
+  if(costSub) costSub.textContent='Balance: '+(_sub.tokens_balance||0);
+}
+
+document.getElementById('cvQualityRow').addEventListener('click',e=>{
+  const t=e.target.closest('.cv-quality'); if(!t) return;
+  if(t.classList.contains('locked')){
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+    showToast('Доступно на платном тарифе',true);
+    return;
+  }
+  selectedQuality=t.dataset.q;
+  document.querySelectorAll('.cv-quality').forEach(q=>q.classList.toggle('active',q===t));
+  updateCostForQuality();
+});
+
+function currentVideoCost(){
+  if(!_sub) return 10;
+  const q=parseInt(selectedQuality||'480',10);
+  const thr=_sub.hd_quality_threshold||720;
+  return q>=thr ? (_sub.video_gen_cost_hd||15) : (_sub.video_gen_cost_base||10);
+}
+
+function updateCostForQuality(){
+  const cv=document.getElementById('costVal');
+  const cost=currentVideoCost();
+  if(cv) cv.textContent=cost;
+  // Подсветка нехватки токенов: красная карточка + серая кнопка
+  const card=document.getElementById('costCard');
+  const btn=document.getElementById('generateBtn');
+  const hint=document.getElementById('costHint');
+  const bal=(_sub && _sub.tokens_balance!=null) ? _sub.tokens_balance : null;
+  const insufficient=(bal!=null) && (bal < cost);
+  if(card) card.classList.toggle('no-funds', insufficient);
+  if(btn) btn.classList.toggle('no-funds', insufficient);
+  if(hint) hint.textContent='Not enough tokens — tap to top up';
+}
+
+function addChip(text){
+  const el=document.getElementById('promptBox');
+  el.value=el.value?el.value.replace(/,?\s*$/,'')+', '+text:text;
+  el.focus();
+}
+
+/* ── Reference video ─────────────────────────────── */
+let MAX_REF_DURATION_SEC=15;
+let _refObjectURL=null;
+
+function processVideoFile(file){
+  const url=URL.createObjectURL(file);
+  const probe=document.createElement('video');
+  probe.preload='metadata'; probe.muted=true; probe.src=url;
+  const fail=(msg)=>{URL.revokeObjectURL(url);showToast(msg,true);};
+  probe.addEventListener('loadedmetadata',()=>{
+    const dur=probe.duration;
+    if(!isFinite(dur)||dur<=0){fail('Could not read video duration');return;}
+    if(dur>MAX_REF_DURATION_SEC+0.05){fail(`Video must be ≤ ${MAX_REF_DURATION_SEC}s (yours: ${dur.toFixed(1)}s)`);return;}
+    const slot=document.getElementById('refSlot');
+    const empty=document.getElementById('rsEmpty');
+    const clearBtn=document.getElementById('slotClear');
+    const prev=slot.querySelector('video'); if(prev){prev.remove();}
+    if(_refObjectURL){URL.revokeObjectURL(_refObjectURL);}
+    _refObjectURL=url;
+    const vid=document.createElement('video');
+    vid.src=url;vid.autoplay=true;vid.muted=true;vid.loop=true;vid.playsInline=true;
+    slot.insertBefore(vid,slot.firstChild);
+    empty.style.display='none';
+    clearBtn.classList.add('visible');
+  },{once:true});
+  probe.addEventListener('error',()=>fail('Invalid or unsupported video'),{once:true});
+}
+
+let _dropHandled=false;
+document.getElementById('videoInput').addEventListener('change',function(){
+  if(_dropHandled){_dropHandled=false;return;}
+  const file=this.files&&this.files[0]; if(!file) return;
+  processVideoFile(file);
+});
+
+// Drag & drop
+(function(){
+  const slot=document.getElementById('refSlot');
+  let _dc=0;
+  slot.addEventListener('dragenter',(e)=>{e.preventDefault();_dc++;slot.classList.add('drag-over');});
+  slot.addEventListener('dragleave',()=>{if(--_dc<=0){_dc=0;slot.classList.remove('drag-over');}});
+  slot.addEventListener('dragover',(e)=>e.preventDefault());
+  slot.addEventListener('drop',(e)=>{
+    e.preventDefault();
+    _dc=0;slot.classList.remove('drag-over');
+    const file=e.dataTransfer&&e.dataTransfer.files[0];
+    if(!file||!file.type.startsWith('video/')){if(file)showToast('Перетащите видео-файл',true);return;}
+    _dropHandled=true;
+    processVideoFile(file);
+    setTimeout(()=>{_dropHandled=false;},400);
+  });
+})();
+function clearRef(e){
+  e.preventDefault(); e.stopPropagation();
+  const inp=document.getElementById('videoInput');
+  inp.value='';
+  const slot=document.getElementById('refSlot');
+  const empty=document.getElementById('rsEmpty');
+  const clearBtn=document.getElementById('slotClear');
+  const prev=slot.querySelector('video'); if(prev){prev.remove();}
+  if(_refObjectURL){URL.revokeObjectURL(_refObjectURL);_refObjectURL=null;}
+  empty.style.display='flex';
+  clearBtn.classList.remove('visible');
+}
+
+/* ── Generation stages ───────────────────────────── */
+const STAGES=[
+  {id:'INITIALIZING',        icon:'⚡',label:'СТАРТ',    desc:'Инициализация',   detail:'Готовим систему'},
+  {id:'UPLOADING REFERENCE', icon:'⬆', label:'ЗАГРУЗКА',  desc:'Загрузка',      detail:'Отправляем на GPU'},
+  {id:'QUEUING COMFYUI',     icon:'⏳',label:'ОЧЕРЕДЬ',   desc:'В очереди',       detail:'Ждём в очереди'},
+  {id:'GENERATING VIDEO',    icon:'🧠',label:'РЕНДЕР',  desc:'Рендеринг',      detail:'ИИ рисует ваше видео'},
+  {id:'DOWNLOADING',         icon:'⬇', label:'СКАЧАТЬ',desc:'Скачивание',    detail:'Забираем результат'},
+  {id:'FINALIZING',          icon:'✅',label:'ФИНАЛ',  desc:'Финализация',     detail:'Сохраняем результат'},
+];
+const TIPS=['«Лицо + одежда» — лучшее удержание в виральных видео.','Вертикаль 9:16 для TikTok — на 3.2× больше охвата.','Промпты «золотого часа» конвертят на 40% лучше.','Модели с 5+ фото-референсами дают 92% схожести.','Ставь в очередь — авторы делают ~5 видео в день.'];
+
+let _pollInterval=null, _timerInterval=null, _genStartTime=0, _activeGenId=null, _maxPct=0, _lastStage=null;
+
+function showGenSection(){
+  document.getElementById('formSection').style.display='none';
+  document.getElementById('genSection').style.display='block';
+  document.getElementById('pageTitle').textContent='Генерация…';
+}
+
+function setGenPct(pct){
+  _maxPct=Math.max(_maxPct,Math.max(0,Math.min(100,pct)));
+  document.getElementById('genBarFill').style.width=_maxPct+'%';
+  document.getElementById('genPct').textContent=_maxPct;
+}
+
+function renderStepper(currentStage, status){
+  const curIdx=STAGES.findIndex(s=>s.id===currentStage);
+  document.getElementById('genStepper').innerHTML=STAGES.map((s,i)=>{
+    let cls='';
+    if(status==='error'&&i<=curIdx) cls='error';
+    else if(status==='success'||i<curIdx) cls='done';
+    else if(i===curIdx) cls='active';
+    return `<div class="step${cls?' '+cls:''}"><div class="s-box">${cls==='done'?'✓':s.icon}</div><div class="s-lbl">${s.label}</div></div>`;
+  }).join('');
+  const st=STAGES[Math.max(0,curIdx)];
+  if(status==='success'){
+    document.getElementById('genStage').textContent='ГОТОВО';
+    document.getElementById('genSub').textContent='Видео готово!';
+  } else if(status==='error'){
+    document.getElementById('genStage').textContent='ОШИБКА';
+    document.getElementById('genSub').textContent='Генерация не удалась';
+    document.getElementById('genStage').style.color='var(--danger)';
+  } else {
+    document.getElementById('genStage').textContent=st.desc.toUpperCase();
+    document.getElementById('genSub').textContent=st.detail;
+  }
+}
+
+function startTimer(){
+  _genStartTime=Date.now(); _maxPct=0; _lastStage=null;
+  clearInterval(_timerInterval);
+  _timerInterval=setInterval(()=>{
+    const el=Math.floor((Date.now()-_genStartTime)/1000);
+    const m=Math.floor(el/60), s=(el%60).toString().padStart(2,'0');
+    const tEl=document.getElementById('genTimer'); if(tEl) tEl.textContent=`${m.toString().padStart(2,'0')}:${s}`;
+    const tipEl=document.getElementById('genTip'); if(tipEl&&el%5===0) tipEl.textContent=TIPS[Math.floor(el/5)%TIPS.length];
+  },1000);
+}
+
+function startPolling(genId){
+  _activeGenId=genId;
+  sessionStorage.setItem('famous_active_gen',JSON.stringify({gen_id:genId}));
+  clearInterval(_pollInterval);
+  _pollInterval=setInterval(async()=>{
+    try{
+      const res=await fetch('/api/generation/'+genId+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}});
+      if(!res.ok) return;
+      const d=await res.json();
+      const stage=d.current_stage||'INITIALIZING', pct=d.stage_progress||0;
+      if(stage!==_lastStage){_lastStage=stage;}
+      setGenPct(pct);
+      renderStepper(stage,d.status);
+      const remainingMin=Math.max(1,Math.round((100-_maxPct)/100*12));
+      const etaEl=document.getElementById('genEta'); if(etaEl) etaEl.textContent='≈'+remainingMin+' мин';
+
+      if(d.status==='success'){
+        clearInterval(_pollInterval);clearInterval(_timerInterval);
+        _activeGenId=null;
+        sessionStorage.removeItem('famous_active_gen');
+        setGenPct(100);renderStepper('FINALIZING','success');
+        document.getElementById('genBarFill').style.background='var(--brand)';
+        document.getElementById('genFrame').classList.add('done');
+        document.querySelectorAll('.gen-wave-dots .wd').forEach(w=>w.style.display='none');
+        if(genId){
+          const v=document.getElementById('genResultVideo');
+          v.src='/api/video/'+genId; v.style.display='block'; v.play();
+        }
+        fireConfetti();
+        document.getElementById('genActions').innerHTML=`
+          <button class="btn-ghost" onclick="shareGenVideo(${genId})">Поделиться</button>
+          <button class="btn-ghost" onclick="location.href='all_videos.html'">Мои видео</button>
+          <button class="btn-ghost" onclick="location.reload()">Новое</button>`;
+        document.getElementById('stopBtn') && (document.getElementById('stopBtn').disabled=true);
+        showToast('🎬 Видео готово!');
+        if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      } else if(d.status==='error'||d.status==='cancelled'){
+        clearInterval(_pollInterval);clearInterval(_timerInterval);
+        _activeGenId=null;
+        sessionStorage.removeItem('famous_active_gen');
+        renderStepper(stage,'error');
+        document.getElementById('genFrame').classList.add('error');
+        document.getElementById('genActions').innerHTML=`
+          <button class="btn-ghost" onclick="location.reload()">Ещё раз</button>
+          <button class="btn-ghost" onclick="location.href='main.html'">На главную</button>`;
+      }
+    }catch(e){}
+  },3000);
+}
+
+/* ── Generate ────────────────────────────────────── */
+async function generate(){
+  const modelId=sessionStorage.getItem('selectedModelId');
+  if(!modelId){showToast('Выберите модель',true);return;}
+  const videoFile=document.getElementById('videoInput').files&&document.getElementById('videoInput').files[0];
+  if(!videoFile){showToast('Сначала загрузите видео-референс',true);return;}
+  // Проверка баланса перед загрузкой
+  if(_sub){
+    const need=currentVideoCost();
+    if((_sub.tokens_balance||0) < need){
+      showToast('Недостаточно токенов. Нужно '+need+', есть '+(_sub.tokens_balance||0),true);
+      setTimeout(()=>location.href='subscription.html',900);
+      return;
+    }
+  }
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true;
+  document.getElementById('statusMsg').textContent='';
+
+  try{
+    const h=await fetch('/api/comfyui-health',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    const hd=await h.json();
+    if(!hd.available){btn.disabled=false;showToast('Сервис недоступен. Попробуйте позже.',true);return;}
+  }catch(e){}
+
+  const modelName=sessionStorage.getItem('selectedModelName')||'';
+  document.getElementById('genName').textContent=(selectedType==='face_cloth_replacement'?'Лицо и одежда':'Лицо')+' · '+modelName.toUpperCase();
+
+  showGenSection();
+  startTimer();
+  setGenPct(5); renderStepper('INITIALIZING',null);
+
+  // Upload reference video (required)
+  let videoPath=null;
+  setGenPct(12); renderStepper('UPLOADING REFERENCE',null);
+  try{
+    const fd=new FormData();fd.append('file',videoFile);
+    const res=await fetch('/api/upload',{method:'POST',body:fd,headers:{'X-Telegram-Init-Data':getInitData()}});
+    const data=await res.json(); videoPath=data.path||null;
+  }catch(e){
+    clearInterval(_timerInterval);
+    document.getElementById('genFrame').classList.add('error');
+    document.getElementById('genStage').textContent='ОШИБКА ЗАГРУЗКИ';
+    document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.reload()">Ещё раз</button>';
+    return;
+  }
+
+  setGenPct(15); renderStepper('QUEUING COMFYUI',null);
+
+  try{
+    // Длительность из probe: используем фактическую длительность референса (с округлением)
+    let refDur=null;
+    try{
+      const fileUrl=URL.createObjectURL(videoFile);
+      refDur=await new Promise((res)=>{
+        const v=document.createElement('video');v.preload='metadata';v.muted=true;v.src=fileUrl;
+        v.addEventListener('loadedmetadata',()=>{URL.revokeObjectURL(fileUrl);res(isFinite(v.duration)?v.duration:null);},{once:true});
+        v.addEventListener('error',()=>{URL.revokeObjectURL(fileUrl);res(null);},{once:true});
+      });
+    }catch(e){}
+
+    const startRes=await fetch('/api/generation/start',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({
+        mode:selectedType,
+        model_id:Number(modelId),
+        prompt:document.getElementById('promptBox').value.trim()||'',
+        video_path:videoPath||undefined,
+        generation_type:'video_gen',
+        quality:selectedQuality,
+        duration_sec:refDur
+      })
+    });
+    if(startRes.status===402||startRes.status===403){
+      const err=await startRes.json().catch(()=>({}));
+      clearInterval(_timerInterval);
+      document.getElementById('genFrame').classList.add('error');
+      document.getElementById('genStage').textContent=startRes.status===402?'НЕТ ТОКЕНОВ':'НЕДОСТУПНО';
+      document.getElementById('genSub').textContent=err.error||'Обновите тариф';
+      document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.href=\'subscription.html\'">Тарифы</button><button class="btn-ghost" onclick="location.reload()">Назад</button>';
+      return;
+    }
+    const startData=await startRes.json();
+    if(startData.gen_id) startPolling(startData.gen_id);
+    else throw new Error('no gen_id');
+  }catch(e){
+    clearInterval(_timerInterval);
+    document.getElementById('genFrame').classList.add('error');
+    document.getElementById('genStage').textContent='ОШИБКА СЕТИ';
+    document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.reload()">Ещё раз</button><button class="btn-ghost" onclick="location.href=\'main.html\'">На главную</button>';
+  }
+}
+
+async function stopGeneration(){
+  if(!_activeGenId) return;
+  const btn=document.getElementById('stopBtn');
+  if(btn){btn.disabled=true;btn.textContent='Останавливаем…';}
+  try{ await fetch('/api/generation/'+_activeGenId+'/cancel',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}}); }catch(e){}
+  clearInterval(_pollInterval);clearInterval(_timerInterval);
+  _activeGenId=null; sessionStorage.removeItem('famous_active_gen');
+  document.getElementById('genFrame').classList.add('error');
+  renderStepper('INITIALIZING','cancelled');
+  document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.reload()">Ещё раз</button><button class="btn-ghost" onclick="location.href=\'main.html\'">На главную</button>';
+}
+
+function minimizeGen(){ showToast('Свёрнуто в фон'); setTimeout(()=>location.href='main.html',400); }
+
+/* ── Share ───────────────────────────────────────── */
+function shareGenVideo(genId){
+  const url=location.origin+'/video_share.html?id='+genId;
+  const tgShare='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent('Check out this AI-generated video 🎬');
+  if(tg&&tg.openLink){tg.openLink(tgShare);return;}
+  window.open(tgShare,'_blank');
+}
+
+/* ── Confetti ────────────────────────────────────── */
+function fireConfetti(){
+  const c=document.getElementById('confetti'), colors=['#3dff6e','#ff3d9e','#ffd23d','#f50a9a','#ffffff'];
+  c.innerHTML=Array.from({length:40}).map((_,i)=>{const l=Math.random()*100,col=colors[i%5],d=Math.random()*0.5,dur=1.8+Math.random()*1.5,r=Math.random()*360;return `<div class="piece" style="left:${l}%;background:${col};transform:rotate(${r}deg);animation-duration:${dur}s;animation-delay:${d}s"></div>`;}).join('');
+  setTimeout(()=>{c.innerHTML='';},3500);
+}
+
+/* ── System Status ───────────────────────────────── */
+function openSysModal(){
+  document.getElementById('sysModal').classList.add('open');
+  document.getElementById('sysModalContent').innerHTML='<div class="loading-ring" style="margin:20px auto;width:24px;height:24px;border-width:2px"></div>';
+  fetch('/api/system-status',{headers:{'X-Telegram-Init-Data':getInitData()}})
+    .then(r=>r.json()).then(renderSysStatus).catch(()=>{document.getElementById('sysModalContent').innerHTML='<div style="color:var(--danger);font-size:11px">Failed to load</div>';});
+}
+function closeSysModal(){ document.getElementById('sysModal').classList.remove('open'); }
+function renderSysStatus(d){
+  const S=d.server||{},C=d.comfyui||{},Q=d.queue||{};
+  const gpu=C.data&&C.data.devices&&C.data.devices[0];
+  document.getElementById('sysModalContent').innerHTML=`
+    <div class="sys-lbl">SERVER</div>
+    <div class="sys-row"><span style="color:#888">CPU</span><span style="color:#fff">${S.cpu||'—'}%</span></div>
+    <div class="sys-row"><span style="color:#888">RAM</span><span style="color:#fff">${S.ram_used_gb||'—'} / ${S.ram_total_gb||'—'} GB</span></div>
+    <div class="sys-lbl">COMFYUI</div>
+    <div class="sys-row"><span style="color:#888">Status</span><span style="color:${C.available?'var(--brand)':'var(--danger)'}">${C.available?'ONLINE':'OFFLINE'}</span></div>
+    ${gpu?`<div class="sys-row"><span style="color:#888">GPU</span><span style="color:#fff">${gpu.name}</span></div>
+    <div class="sys-row"><span style="color:#888">VRAM</span><span style="color:#fff">${(gpu.vram_used/1024/1024/1024).toFixed(1)} / ${(gpu.vram_total/1024/1024/1024).toFixed(1)} GB</span></div>`:''}
+    <div class="sys-lbl">QUEUE</div>
+    <div class="sys-row"><span style="color:#888">Running</span><span style="color:#fff">${Q.running||0}</span></div>
+    <div class="sys-row"><span style="color:#888">Status</span><span style="color:${Q.safe_to_generate?'var(--brand)':'var(--warn)'}">${Q.safe_to_generate?'READY':'BUSY'}</span></div>`;
+}
+
+/* ── Resume active generation ────────────────────── */
+function checkResume(){
+  let saved=null;
+  try{saved=JSON.parse(sessionStorage.getItem('famous_active_gen')||'null');}catch(e){}
+  if(!saved||!saved.gen_id) return;
+  fetch('/api/generation/'+saved.gen_id+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}})
+    .then(r=>r.json()).then(d=>{
+      if(d.status==='running'){
+        document.getElementById('genName').textContent='Resuming...';
+        showGenSection(); startTimer(); startPolling(saved.gen_id);
+      } else { sessionStorage.removeItem('famous_active_gen'); }
+    }).catch(()=>{sessionStorage.removeItem('famous_active_gen');});
+}
+
+async function checkAdminBadge(){
+  try{
+    const r=await fetch('/api/profile',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    if(d.is_admin){const b=document.getElementById('sysStatusBtn'); if(b) b.style.display='';}
+  }catch(e){}
+}
+
+
+/* ── FAMOUS presentation hooks (direct global calls from parent slide) ── */
+(function famousPresoHooks(){
+  let fakeInt=null, fakeStarted=false, typeInt=null;
+
+  window.famousResetForm=function(){
+    const f=document.getElementById('formSection'),g=document.getElementById('genSection');
+    if(g) g.style.display='none';
+    if(f) f.style.display='';
+    const t=document.getElementById('pageTitle'); if(t) t.textContent='Create Video';
+    if(fakeInt){clearInterval(fakeInt);fakeInt=null;}
+    if(typeInt){clearInterval(typeInt);typeInt=null;}
+    if(typeof _timerInterval!=='undefined'&&_timerInterval){clearInterval(_timerInterval);_timerInterval=null;}
+    fakeStarted=false;
+    const slot=document.getElementById('refSlot');
+    const empty=document.getElementById('rsEmpty');
+    const clearBtn=document.getElementById('slotClear');
+    if(slot){const prev=slot.querySelector('video');if(prev)prev.remove();}
+    if(empty) empty.style.display='flex';
+    if(clearBtn) clearBtn.classList.remove('visible');
+    const pb=document.getElementById('promptBox');
+    if(pb) pb.value='';
+  };
+
+  function loadRefVideoUrl(url){
+    const slot=document.getElementById('refSlot');
+    const empty=document.getElementById('rsEmpty');
+    const clearBtn=document.getElementById('slotClear');
+    if(!slot) return;
+    const prev=slot.querySelector('video');if(prev)prev.remove();
+    const vid=document.createElement('video');
+    vid.src=url;vid.autoplay=true;vid.muted=true;vid.loop=true;vid.playsInline=true;
+    slot.insertBefore(vid,slot.firstChild);
+    if(empty) empty.style.display='none';
+    if(clearBtn) clearBtn.classList.add('visible');
+  }
+
+  function startTypewriter(text){
+    if(typeInt){clearInterval(typeInt);typeInt=null;}
+    const pb=document.getElementById('promptBox');
+    if(!pb) return;
+    pb.value='';
+    let i=0;
+    typeInt=setInterval(function(){
+      if(i<text.length){pb.value+=text[i++];}
+      else{clearInterval(typeInt);typeInt=null;}
+    },50);
+  }
+
+  var _flashTargets={
+    cvSec1:[['.cv-model-card','cv-flash-ring']],
+    cvSec2:[['.cv-type','cv-flash-bg']],
+    cvSec3:[['#refSlot','cv-flash-bg']],
+    cvSec4:[['.cv-quality','cv-flash-bg'],['#promptBox','cv-flash-bg']]
+  };
+  function flashStepEl(id){
+    var targets=_flashTargets[id];
+    if(!targets) return;
+    var els=[];
+    targets.forEach(function(pair){
+      var sel=pair[0], cls=pair[1];
+      if(sel[0]==='.'){
+        document.querySelectorAll(sel).forEach(function(el){els.push([el,cls]);});
+      } else {
+        var el=document.getElementById(sel.replace('#',''));
+        if(el) els.push([el,cls]);
+      }
+    });
+    els.forEach(function(pair){
+      var el=pair[0], cls=pair[1];
+      el.classList.remove('cv-flash-ring','cv-flash-bg');
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(function(){el.classList.remove(cls);},750);
+    });
+  }
+
+  window.famousFocus=function(id){
+    let tries=0;
+    function go(){
+      const el=document.getElementById(id);
+      const fc=document.getElementById('formContent');
+      const fs=document.getElementById('formSection');
+      const formVisible=fs&&fs.style.display!=='none';
+      const contentReady=fc&&fc.style.display!=='none';
+      if(!el||!formVisible||!contentReady){
+        if(++tries<40) return setTimeout(go,80);
+        return;
+      }
+      const scrollOffset=id==='cvSec3'?80:16;
+      const top=Math.max(0, window.scrollY+el.getBoundingClientRect().top-scrollOffset);
+      try{window.scrollTo({top,behavior:'smooth'});}catch(e){window.scrollTo(0,top);}
+      setTimeout(function(){
+        flashStepEl(id);
+        if(id==='cvSec4'){
+          const lbl=document.getElementById('cvPromptLabel');
+          if(lbl){
+            const pt=Math.max(0,window.scrollY+lbl.getBoundingClientRect().top-16);
+            try{window.scrollTo({top:pt,behavior:'smooth'});}catch(e){}
+          }
+        }
+      },250);
+    }
+    if(window.famousResetForm) window.famousResetForm();
+    requestAnimationFrame(go);
+  };
+
+  /* Slow demo generation (slide 8) */
+  window.famousShowGen=function(){
+    if(fakeStarted) return;
+    fakeStarted=true;
+    if(typeof showGenSection==='function') showGenSection();
+    if(typeof startTimer==='function') startTimer();
+    const nm=document.getElementById('genName'); if(nm) nm.textContent='Face & Clothes · Alexa';
+    let pct=0, stageIdx=0;
+    if(typeof setGenPct==='function') setGenPct(0);
+    if(typeof renderStepper==='function'&&typeof STAGES!=='undefined') renderStepper(STAGES[0].id,'running');
+    fakeInt=setInterval(()=>{
+      pct=Math.min(95,pct+1.5);
+      if(typeof setGenPct==='function') setGenPct(pct);
+      const eta=document.getElementById('genEta');
+      if(eta){const m=Math.max(1,Math.round((100-pct)/100*12));eta.textContent='≈'+m+' мин';}
+      if(typeof STAGES!=='undefined'){
+        const ni=Math.min(STAGES.length-1,Math.floor((pct/95)*STAGES.length));
+        if(ni!==stageIdx){stageIdx=ni;if(typeof renderStepper==='function') renderStepper(STAGES[stageIdx].id,'running');}
+      }
+    },220);
+  };
+
+  /* Fast demo generation (slide 7) — called directly by parent */
+  window.famousShowGenFast=function(resultUrl, durationMs){
+    if(fakeStarted) return;
+    fakeStarted=true;
+    if(typeof showGenSection==='function') showGenSection();
+    if(typeof startTimer==='function') startTimer();
+    const nm=document.getElementById('genName'); if(nm) nm.textContent='Face & Clothes · Alisa';
+    let pct=0, stageIdx=0;
+    if(typeof setGenPct==='function') setGenPct(0);
+    if(typeof renderStepper==='function'&&typeof STAGES!=='undefined') renderStepper(STAGES[0].id,'running');
+    const STEP_MS=50, steps=(durationMs||5000)/STEP_MS;
+    let step=0;
+    fakeInt=setInterval(function(){
+      step++;
+      pct=Math.min(100,Math.round((step/steps)*100));
+      if(typeof setGenPct==='function') setGenPct(pct);
+      if(typeof STAGES!=='undefined'){
+        const ni=Math.min(STAGES.length-1,Math.floor((pct/100)*STAGES.length));
+        if(ni!==stageIdx){stageIdx=ni;if(typeof renderStepper==='function') renderStepper(STAGES[stageIdx].id,'running');}
+      }
+      if(pct>=100){
+        clearInterval(fakeInt);fakeInt=null;
+        if(typeof renderStepper==='function') renderStepper('FINALIZING','success');
+        const gf=document.getElementById('genFrame');if(gf) gf.classList.add('done');
+        document.querySelectorAll('.gen-wave-dots .wd').forEach(function(w){w.style.display='none';});
+        const v=document.getElementById('genResultVideo');
+        if(v){v.src=resultUrl||'';v.style.display='block';v.play();}
+        const gb=document.getElementById('genBarFill');if(gb) gb.style.background='var(--brand)';
+        const ga=document.getElementById('genActions');
+        if(ga) ga.innerHTML='<button class="btn-ghost" onclick="location.reload()">Создать ещё</button>';
+        const tEl=document.getElementById('genTimer');if(tEl) tEl.textContent='00:05';
+        if(typeof _timerInterval!=='undefined'&&_timerInterval) clearInterval(_timerInterval);
+        if(typeof fireConfetti==='function') fireConfetti();
+      }
+    },STEP_MS);
+  };
+
+  /* Simple helpers exposed for parent to call directly */
+  window.famousLoadRefVideo=function(url){ loadRefVideoUrl(url); };
+  window.famousStartTypewriter=function(text){ startTypewriter(text); };
+})();
+
+window.addEventListener('load',()=>{
+  loadModels();
+  loadSubscription();
+  checkResume();
+  checkAdminBadge();
+
+  // Возврат на страницу из любого источника — освежаем баланс/план
+  window.addEventListener('pageshow', loadSubscription);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadSubscription();
+  });
+  const pb=document.getElementById('promptBox');
+  if(pb) pb.addEventListener('input',()=>{
+    const cleaned=pb.value.replace(/^\s+/,'').replace(/[ \t]{2,}/g,' ');
+    if(cleaned!==pb.value){
+      const pos=pb.selectionStart-(pb.value.length-cleaned.length);
+      pb.value=cleaned;
+      try{pb.setSelectionRange(pos,pos);}catch(e){}
+    }
+  });
+});
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Profile</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Profile hero ─────────────────────────────────── */
+.profile-hero{padding:24px 20px 16px;position:relative;background:linear-gradient(180deg,rgba(61,255,110,0.06),transparent);}
+.pf-top{display:flex;align-items:center;gap:14px;}
+.pf-avatar{width:76px;height:76px;border-radius:50%;background:#222 center/cover no-repeat;border:3px solid var(--brand);flex-shrink:0;box-shadow:0 0 30px rgba(61,255,110,0.25);}
+.pf-info{flex:1;min-width:0;}
+.pf-name{font-family:var(--font-heavy);font-size:24px;letter-spacing:-0.03em;color:#fff;line-height:1.05;}
+.pf-handle{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);letter-spacing:0.02em;margin-top:4px;}
+.pf-badge-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.pf-badge{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.08em;padding:4px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;}
+.pf-badge.pro{background:linear-gradient(135deg,#ffd23d,#ffb03d);color:#2a1a00;}
+.pf-badge.verified{background:rgba(0,216,255,0.12);color:#00d8ff;border:1px solid rgba(0,216,255,0.3);}
+
+/* ── Stats ────────────────────────────────────────── */
+.pf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;}
+.pf-stat{text-align:center;border-right:1px solid var(--line);}
+.pf-stat:last-child{border-right:none;}
+.pf-stat .pfs-v{font-family:var(--font-heavy);font-size:20px;color:#fff;letter-spacing:-0.02em;line-height:1;}
+.pf-stat .pfs-l{font-family:var(--font-mono);font-size:9px;color:var(--text-mute);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;}
+
+/* ── Quick row ────────────────────────────────────── */
+.pf-quick-row{padding:18px 20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.pf-quick{aspect-ratio:1/1;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .2s;}
+.pf-quick:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);transform:translateY(-2px);}
+.pf-quick svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;}
+.pf-quick .q-lbl{font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;color:var(--text-dim);text-transform:uppercase;}
+
+/* ── Menu ─────────────────────────────────────────── */
+.pf-section{padding:18px 20px 0;}
+.pf-section-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;}
+.pf-menu{display:flex;flex-direction:column;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+.pf-menu-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .2s;}
+.pf-menu-item:last-child{border-bottom:none;}
+.pf-menu-item:hover{background:rgba(255,255,255,0.04);}
+.mi-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.mi-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;}
+.mi-icon.brand{background:rgba(61,255,110,0.12);}
+.mi-icon.brand svg{stroke:var(--brand);}
+.mi-icon.accent{background:rgba(255,61,158,0.12);}
+.mi-icon.accent svg{stroke:var(--accent);}
+.mi-text{flex:1;}
+.mi-title{font-size:14px;color:#fff;font-weight:600;letter-spacing:-0.01em;}
+.mi-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px;letter-spacing:0.02em;}
+.mi-chev{color:var(--text-mute);}
+.mi-chev svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;}
+.mi-badge{font-family:var(--font-mono);font-size:9px;font-weight:700;background:var(--brand);color:#000;padding:3px 7px;border-radius:6px;letter-spacing:0.04em;}
+
+/* ── Credits section ──────────────────────────────── */
+.cr-hero{padding:24px 20px 20px;text-align:center;position:relative;overflow:hidden;}
+.cr-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center top,rgba(61,255,110,0.15),transparent 60%);pointer-events:none;}
+.cr-balance{font-family:var(--font-heavy);font-size:64px;letter-spacing:-0.05em;line-height:1;position:relative;background:linear-gradient(180deg,#fff 0%,#3dff6e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.cr-balance-sub{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);letter-spacing:0.04em;margin-top:6px;position:relative;}
+.cr-balance-sub .hl{color:var(--brand);font-weight:700;}
+.cr-progress{margin:20px 0 0;position:relative;}
+.cr-progress-bar{height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;}
+.cr-progress-fill{height:100%;background:linear-gradient(90deg,var(--brand),#7dff9a);border-radius:4px;}
+.cr-progress-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;margin-top:8px;color:var(--text-dim);}
+
+/* ── Loading skeleton ─────────────────────────────── */
+.pf-skeleton{padding:20px;}
+.sk-row{height:16px;border-radius:8px;background:rgba(255,255,255,0.06);margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title">Profile</div>
+    <div></div>
+  </div>
+
+  <!-- Content -->
+  <div class="app-scroll" id="content">
+    <div class="loading-ring"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn active" onclick="void(0)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function svgChev(){return `<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;}
+
+function getTgPhotoUrl(){
+  try{ return tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.photo_url||null; }catch(e){ return null; }
+}
+
+async function loadProfile(){
+  try{
+    const res=await fetch('/api/profile',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error();
+    render(await res.json());
+  }catch(e){
+    document.getElementById('content').innerHTML='<div class="empty-state">Profile unavailable. Open from Telegram.</div>';
+  }
+}
+
+function fmtPlanDate(s){
+  if(!s) return '';
+  try{
+    return new Date(s.replace(' ','T')+'Z')
+      .toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  }catch(e){ return s.slice(0,10); }
+}
+
+function render(d){
+  const fullName=[d.first_name,d.last_name].filter(Boolean).join(' ')||'—';
+  const uname=d.username?'@'+d.username:'—';
+  const total=(d.gen_success||0)+(d.gen_error||0);
+  const models=d.models_count||0;
+  const photoUrl=d.photo_url||getTgPhotoUrl()||'';
+  const avatarStyle=photoUrl?`background-image:url('${photoUrl}')`:'';
+  const planId=(d.plan||'free').toLowerCase();
+  const planBadgeCls=planId==='free'?'verified':(planId==='advancer'?'pro':'verified');
+  const planBadgeIcon=planId==='free'?'●':'⚡';
+  const planBadgeText=(d.plan_name||'Free').toUpperCase();
+  const expiresFmt=fmtPlanDate(d.plan_expires_at);
+
+  document.getElementById('content').innerHTML=`
+    <!-- Profile hero -->
+    <div class="profile-hero">
+      <div class="pf-top">
+        <div class="pf-avatar" id="pfAvatar" style="${avatarStyle}"></div>
+        <div class="pf-info">
+          <div class="pf-name">${fullName}</div>
+          <div class="pf-handle">${uname}</div>
+          <div class="pf-badge-row" id="pfBadgeRow">
+            <span class="pf-badge ${planBadgeCls}">${planBadgeIcon} ${planBadgeText}</span>
+          </div>
+        </div>
+      </div>
+      <div class="pf-stats">
+        <div class="pf-stat"><div class="pfs-v">${models}</div><div class="pfs-l">Models</div></div>
+        <div class="pf-stat"><div class="pfs-v">${total}</div><div class="pfs-l">Videos</div></div>
+        <div class="pf-stat"><div class="pfs-v">${d.gen_success||0}</div><div class="pfs-l">Success</div></div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="pf-quick-row">
+      <div class="pf-quick" onclick="location.href='all_videos.html?tab=models'">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+        <div class="q-lbl">Models</div>
+      </div>
+      <div class="pf-quick" onclick="location.href='all_videos.html'">
+        <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20" fill="currentColor" stroke="none"/></svg>
+        <div class="q-lbl">Videos</div>
+      </div>
+      <div class="pf-quick" onclick="location.href='subscription.html'">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg>
+        <div class="q-lbl">Tokens</div>
+      </div>
+      <div class="pf-quick" onclick="location.href='invite.html'">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <div class="q-lbl">Invite</div>
+      </div>
+    </div>
+
+    <!-- Subscription card (moved up — right under quick actions) -->
+    <div class="pf-section" id="creditsSection">
+      <div class="pf-section-title">Subscription</div>
+      <div onclick="location.href='subscription.html'" style="cursor:pointer;padding:20px;background:linear-gradient(135deg,rgba(61,255,110,0.10),rgba(61,255,110,0.02));border:1px solid rgba(61,255,110,0.25);border-radius:16px;display:flex;justify-content:space-between;align-items:center;gap:14px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--font-heavy);font-size:22px;color:#fff;letter-spacing:-0.02em">${(d.plan_name||'Free').toUpperCase()}</div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:6px;letter-spacing:0.02em">Balance: <b style="color:var(--brand)">${d.tokens_balance||0}</b> tokens${expiresFmt?'<br>Active until '+expiresFmt:''}</div>
+        </div>
+        <div style="text-align:right;display:flex;align-items:center;gap:6px;color:var(--brand);font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+          ${(d.plan||'free')==='free'?'Upgrade':'Manage'}
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account section -->
+    <div class="pf-section">
+      <div class="pf-section-title">Account</div>
+      <div class="pf-menu">
+        <div class="pf-menu-item" onclick="location.href='subscription.html'">
+          <div class="mi-icon brand"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Tokens &amp; Plan</div>
+            <div class="mi-sub">${d.plan_name||'Free'} · ${d.tokens_balance||0} tokens</div>
+          </div>
+          <div class="mi-badge">${(d.plan||'free').toUpperCase()}</div>
+        </div>
+        <div class="pf-menu-item" onclick="location.href='tokens_history.html'">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><polyline points="12 6 12 12 16 14"/><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Tokens history</div>
+            <div class="mi-sub">All credits and debits</div>
+          </div>
+          <div class="mi-chev">${svgChev()}</div>
+        </div>
+        <div class="pf-menu-item" onclick="location.href='collab_invites.html'">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Collaboration invites</div>
+            <div class="mi-sub">${(d.pending_invites||0)>0?(d.pending_invites+' pending'):'No pending invites'}</div>
+          </div>
+          ${(d.pending_invites||0)>0?`<div class="mi-badge">${d.pending_invites}</div>`:`<div class="mi-chev">${svgChev()}</div>`}
+        </div>
+        <div class="pf-menu-item" onclick="location.href='invite.html'">
+          <div class="mi-icon accent"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Invite friends</div>
+            <div class="mi-sub">Share your link · track who joined</div>
+          </div>
+          <div class="mi-chev">${svgChev()}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info section -->
+    <div class="pf-section">
+      <div class="pf-section-title">Info</div>
+      <div class="pf-menu">
+        <div class="pf-menu-item" onclick="copyTgId('${d.id||''}')">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="15" y2="12"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Telegram ID</div>
+            <div class="mi-sub">${d.id||'—'}</div>
+          </div>
+          <div class="mi-chev"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></div>
+        </div>
+        <div class="pf-menu-item">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Member since</div>
+            <div class="mi-sub">${d.created_at?d.created_at.slice(0,10):'—'}</div>
+          </div>
+        </div>
+        <div class="pf-menu-item">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="mi-text">
+            <div class="mi-title">Generations</div>
+            <div class="mi-sub">${total} total · ${d.gen_success||0} successful · ${d.gen_error||0} failed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Support -->
+    <div class="pf-section">
+      <div class="pf-section-title">Support</div>
+      <div class="pf-menu">
+        <div class="pf-menu-item" onclick="tg&&tg.openTelegramLink?tg.openTelegramLink('https://t.me/aifamouscenter_bot'):window.open('https://t.me/aifamouscenter_bot','_blank')">
+          <div class="mi-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="mi-text"><div class="mi-title">Help & Support</div><div class="mi-sub">@aifamouscenter_bot</div></div>
+          <div class="mi-chev">${svgChev()}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:24px"></div>
+  `;
+  if(window.pageStagger) window.pageStagger(document.getElementById('content'));
+}
+
+function scrollToCredits(){
+  const el=document.getElementById('creditsSection');
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function copyTgId(id){
+  if(!id) return;
+  const txt=String(id);
+  const done=()=>{
+    showToast('ID copied');
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done).catch(()=>fallback(txt,done));
+      return;
+    }
+  }catch(e){}
+  fallback(txt,done);
+}
+function fallback(txt,done){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    done();
+  }catch(e){ showToast('Copy failed', true); }
+}
+
+// pageshow срабатывает и при первой загрузке, и при возврате (включая bfcache).
+// Используем его как единственную точку входа — гарантирует свежие данные после
+// возврата со страницы подписки в любом WebView (iOS/Android Telegram).
+window.addEventListener('pageshow', loadProfile);
+// Страховка: пользователь свернул мини-апп и вернулся
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadProfile();
+});
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

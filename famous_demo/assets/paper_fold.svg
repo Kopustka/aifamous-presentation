@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" width="100" height="130" preserveAspectRatio="xMidYMid meet">
+  <!-- Dog-ear fold flap. All three vertices rounded with r=3 so the contour
+       has smooth transitions instead of sharp angles:
+         A (65,0)   — at the top, where crease meets the paper's top edge
+         B (100,30) — at the right, where crease meets the paper's right edge
+         C (65,30)  — the folded corner tip (inside the paper body) -->
+  <path d="M 67.28 1.95
+           L 97.72 28.05
+           Q 100 30 97 30
+           L 68 30
+           Q 65 30 65 27
+           L 65 3
+           Q 65 0 67.28 1.95
+           Z"
+        fill="#dcdcdc" stroke="#b5b5b5" stroke-width="0.3" stroke-linejoin="round"/>
+</svg>

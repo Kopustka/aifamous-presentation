@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Invite</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Invite hero ──────────────────────────────────── */
+.inv-hero{padding:32px 20px 24px;text-align:center;position:relative;overflow:hidden;}
+.inv-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center top,rgba(61,255,110,0.12),transparent 65%);pointer-events:none;}
+.inv-icon{width:72px;height:72px;border-radius:50%;background:rgba(61,255,110,0.1);border:1.5px solid rgba(61,255,110,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;}
+.inv-icon svg{width:32px;height:32px;stroke:var(--brand);fill:none;stroke-width:1.8;}
+.inv-title{font-family:var(--font-heavy);font-size:32px;letter-spacing:-0.04em;color:#fff;line-height:1;}
+.inv-sub{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-top:10px;line-height:1.6;letter-spacing:0.02em;}
+
+/* ── Stats row ────────────────────────────────────── */
+.inv-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px 20px;}
+.inv-stat{padding:16px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid var(--line);text-align:center;}
+.inv-stat .is-v{font-family:var(--font-heavy);font-size:36px;letter-spacing:-0.04em;color:#fff;line-height:1;}
+.inv-stat.green .is-v{color:var(--brand);}
+.inv-stat .is-l{font-family:var(--font-mono);font-size:9px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-top:6px;}
+
+/* ── Link block ───────────────────────────────────── */
+.inv-link-section{padding:0 20px 20px;}
+.inv-link-label{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;}
+.inv-link-box{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.inv-link-text{flex:1;padding:14px 14px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.inv-copy-btn{padding:14px 18px;background:var(--brand);color:#000;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.06em;cursor:pointer;transition:opacity .18s;flex-shrink:0;border:none;outline:none;}
+.inv-copy-btn:active{opacity:0.8;}
+
+/* ── Share button ─────────────────────────────────── */
+.inv-share-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:rgba(61,255,110,0.08);border:1.5px solid rgba(61,255,110,0.3);border-radius:16px;cursor:pointer;transition:all .2s;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--brand);letter-spacing:0.04em;}
+.inv-share-btn:hover{background:rgba(61,255,110,0.14);border-color:rgba(61,255,110,0.5);}
+.inv-share-btn:active{opacity:0.8;}
+.inv-share-btn svg{width:18px;height:18px;stroke:var(--brand);fill:none;stroke-width:2;}
+
+/* ── Invitees list ────────────────────────────────── */
+.inv-section{padding:0 20px;}
+.inv-section-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;}
+.inv-list{display:flex;flex-direction:column;gap:8px;}
+.inv-person{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:14px;}
+.inv-person-av{width:36px;height:36px;border-radius:50%;background:rgba(61,255,110,0.1);border:1px solid rgba(61,255,110,0.2);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--brand);flex-shrink:0;}
+.inv-person-info{flex:1;min-width:0;}
+.inv-person-name{font-size:14px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.inv-person-date{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);margin-top:2px;}
+.inv-person-badge{font-family:var(--font-mono);font-size:9px;font-weight:700;background:rgba(61,255,110,0.1);color:var(--brand);border:1px solid rgba(61,255,110,0.25);padding:3px 8px;border-radius:6px;flex-shrink:0;}
+
+.inv-empty{text-align:center;padding:40px 20px;font-family:var(--font-mono);font-size:12px;color:var(--text-mute);letter-spacing:0.04em;line-height:1.8;}
+.inv-empty svg{width:40px;height:40px;stroke:rgba(255,255,255,0.1);fill:none;stroke-width:1.5;display:block;margin:0 auto 14px;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title">Invite Friends</div>
+    <div></div>
+  </div>
+
+  <!-- Content -->
+  <div class="app-scroll" id="content">
+    <div class="loading-ring"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn active" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+try{if(tg&&tg.BackButton){tg.BackButton.show();if(typeof tg.BackButton.onClick==='function')tg.BackButton.onClick(()=>history.back());}}catch(e){}
+
+let _inviteLink='';
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function copyLink(){
+  if(!_inviteLink) return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(_inviteLink).then(()=>showToast('Link copied!')).catch(()=>fallbackCopy());
+  } else {
+    fallbackCopy();
+  }
+}
+
+function fallbackCopy(){
+  const el=document.createElement('textarea');
+  el.value=_inviteLink;
+  el.style.position='fixed';el.style.opacity='0';
+  document.body.appendChild(el);el.select();
+  try{document.execCommand('copy');showToast('Link copied!');}catch(e){showToast('Copy failed',true);}
+  document.body.removeChild(el);
+}
+
+function shareLink(){
+  if(!_inviteLink) return;
+  const text=`Join me on FAMOUS — AI video generation with your face! 🎬\n${_inviteLink}`;
+  if(tg&&tg.openTelegramLink){
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(_inviteLink)}&text=${encodeURIComponent('Join me on FAMOUS — AI video generation with your face! 🎬')}`);
+  } else if(navigator.share){
+    navigator.share({title:'FAMOUS Invite',text,url:_inviteLink}).catch(()=>{});
+  } else {
+    copyLink();
+  }
+}
+
+function fmtDate(s){
+  if(!s) return '';
+  const d=new Date(s.replace(' ','T'));
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function initials(name){
+  return (name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()||'?';
+}
+
+function render(d){
+  _inviteLink=d.invite_link||'';
+  const count=d.invited_count||0;
+  const invitees=d.invitees||[];
+  const linkDisplay=_inviteLink||'Set BOT_USERNAME in config';
+  const tokensEarned=Number(d.tokens_earned||0);
+  const bonusPer=Number(d.bonus_per_invite||50);
+
+  let listHtml='';
+  if(invitees.length){
+    listHtml=invitees.map(p=>`
+      <div class="inv-person">
+        <div class="inv-person-av">${initials(p.name)}</div>
+        <div class="inv-person-info">
+          <div class="inv-person-name">${p.name}</div>
+          <div class="inv-person-date">${fmtDate(p.joined_at)}</div>
+        </div>
+        <div class="inv-person-badge">JOINED</div>
+      </div>
+    `).join('');
+  } else {
+    listHtml=`
+      <div class="inv-empty">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+        No one joined yet.<br>Share your link and start earning!
+      </div>`;
+  }
+
+  document.getElementById('content').innerHTML=`
+    <div class="inv-hero">
+      <div class="inv-icon">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </div>
+      <div class="inv-title">Invite Friends</div>
+      <div class="inv-sub">Share your link and earn <b style="color:var(--brand)">+${bonusPer} tokens</b> for every friend who joins through you.</div>
+    </div>
+
+    <div class="inv-stats">
+      <div class="inv-stat green">
+        <div class="is-v">${count}</div>
+        <div class="is-l">Joined</div>
+      </div>
+      <div class="inv-stat">
+        <div class="is-v">${tokensEarned}</div>
+        <div class="is-l">Tokens earned</div>
+      </div>
+    </div>
+
+    <div class="inv-link-section">
+      <div class="inv-link-label">Your invite link</div>
+      <div class="inv-link-box">
+        <div class="inv-link-text">${linkDisplay}</div>
+        <button class="inv-copy-btn" onclick="copyLink()">COPY</button>
+      </div>
+    </div>
+
+    <button class="inv-share-btn" onclick="shareLink()">
+      <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      SHARE IN TELEGRAM
+    </button>
+
+    <div class="inv-section">
+      <div class="inv-section-title">People you invited (${count})</div>
+      <div class="inv-list">${listHtml}</div>
+    </div>
+
+    <div style="height:24px"></div>
+  `;
+}
+
+async function loadStats(){
+  try{
+    const res=await fetch('/api/invite/stats',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error();
+    render(await res.json());
+  }catch(e){
+    document.getElementById('content').innerHTML='<div class="empty-state">Could not load invite stats. Open from Telegram.</div>';
+  }
+}
+
+loadStats();
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

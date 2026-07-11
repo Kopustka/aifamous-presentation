@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Subscription</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+.sub-hero{padding:24px 20px 8px;text-align:center;background:linear-gradient(180deg,rgba(61,255,110,0.06),transparent);}
+.sub-balance-card{margin:16px 20px 0;padding:18px 20px;border-radius:18px;background:linear-gradient(135deg,rgba(61,255,110,0.10),rgba(61,255,110,0.02));border:1px solid rgba(61,255,110,0.25);display:flex;align-items:center;gap:14px;}
+.sub-balance-card .bc-icon{width:44px;height:44px;border-radius:14px;background:rgba(61,255,110,0.15);display:flex;align-items:center;justify-content:center;color:var(--brand);flex-shrink:0;}
+.sub-balance-card .bc-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;}
+.sub-balance-card .bc-text{flex:1;}
+.sub-balance-card .bc-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;color:var(--text-dim);text-transform:uppercase;}
+.sub-balance-card .bc-val{font-family:var(--font-heavy);font-size:30px;letter-spacing:-0.03em;color:#fff;line-height:1;margin-top:4px;}
+.sub-balance-card .bc-val .unit{font-family:var(--font-mono);font-size:10px;color:var(--brand);font-weight:500;margin-left:6px;letter-spacing:0.04em;text-transform:uppercase;}
+.sub-balance-card .bc-plan{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:6px;letter-spacing:0.04em;}
+.sub-balance-card .bc-plan b{color:#fff;font-weight:700;}
+
+.sub-section-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.12em;text-transform:uppercase;padding:24px 20px 12px;}
+
+.plan-card{margin:0 20px 12px;border-radius:20px;background:rgba(255,255,255,0.03);border:1.5px solid var(--line);padding:20px;position:relative;overflow:hidden;transition:border-color .25s,transform .25s;}
+.plan-card.current{border-color:rgba(255,255,255,0.18);}
+.plan-card.recommended{border-color:var(--brand);background:linear-gradient(160deg,rgba(61,255,110,0.10),rgba(61,255,110,0.02));}
+.plan-card.recommended::before{content:"RECOMMENDED";position:absolute;top:12px;right:14px;font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.1em;background:var(--brand);color:#000;padding:3px 8px;border-radius:6px;}
+.plan-card .pc-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;gap:12px;}
+.plan-card .pc-name{font-family:var(--font-heavy);font-size:24px;letter-spacing:-0.03em;color:#fff;line-height:1;}
+.plan-card .pc-tagline{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.04em;margin-top:6px;}
+.plan-card .pc-price{font-family:var(--font-heavy);font-size:26px;color:#fff;letter-spacing:-0.02em;line-height:1;text-align:right;white-space:nowrap;}
+.plan-card .pc-price .pc-period{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);font-weight:500;margin-left:4px;letter-spacing:0.04em;}
+.plan-card .pc-price.free{color:var(--brand);}
+.plan-card ul.pc-feats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.plan-card ul.pc-feats li{display:flex;align-items:flex-start;gap:8px;font-family:var(--font-mono);font-size:11.5px;color:#dcdce0;letter-spacing:0.01em;line-height:1.4;}
+.plan-card ul.pc-feats li svg{width:14px;height:14px;stroke:var(--brand);fill:none;stroke-width:2.4;flex-shrink:0;margin-top:2px;}
+.plan-card .pc-cta{margin-top:16px;display:block;width:100%;padding:14px;border-radius:12px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;border:none;transition:opacity .2s,transform .15s;}
+.plan-card .pc-cta:active{transform:scale(0.98);}
+.plan-card .pc-cta.primary{background:var(--brand);color:#000;}
+.plan-card .pc-cta.primary:hover{opacity:0.9;}
+.plan-card .pc-cta.ghost{background:rgba(255,255,255,0.05);color:#fff;border:1px solid var(--line);}
+.plan-card .pc-cta.disabled{background:rgba(255,255,255,0.04);color:var(--text-mute);cursor:not-allowed;}
+
+.token-pack{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 20px 10px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1.5px solid var(--line);transition:border-color .2s;cursor:pointer;}
+.token-pack:hover{border-color:rgba(255,255,255,0.18);}
+.token-pack.highlight{border-color:rgba(61,255,110,0.4);background:linear-gradient(135deg,rgba(61,255,110,0.08),rgba(61,255,110,0.02));}
+.token-pack .tp-left{display:flex;align-items:center;gap:12px;}
+.token-pack .tp-icon{width:38px;height:38px;border-radius:12px;background:rgba(61,255,110,0.12);display:flex;align-items:center;justify-content:center;color:var(--brand);flex-shrink:0;}
+.token-pack .tp-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
+.token-pack .tp-info .tp-tokens{font-family:var(--font-heavy);font-size:18px;color:#fff;letter-spacing:-0.02em;line-height:1;}
+.token-pack .tp-info .tp-label{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.04em;margin-top:4px;}
+.token-pack .tp-price{font-family:var(--font-heavy);font-size:18px;color:#fff;letter-spacing:-0.02em;}
+.token-pack.locked{opacity:0.45;cursor:not-allowed;}
+
+.locked-hint{margin:6px 20px 0;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.04em;text-align:center;}
+
+.faq{padding:0 20px;}
+.faq-item{padding:14px 0;border-bottom:1px solid var(--line);}
+.faq-item:last-child{border-bottom:none;}
+.faq-q{font-family:var(--font-mono);font-size:11px;color:#fff;font-weight:700;letter-spacing:0.04em;}
+.faq-a{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+
+.err-box{padding:40px 20px;text-align:center;color:var(--text-dim);font-family:var(--font-mono);font-size:12px;line-height:1.6;}
+
+/* ── Confirm modal ──────────────────────────────── */
+.cm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;opacity:0;transition:opacity .2s;}
+.cm-overlay.open{display:flex;opacity:1;}
+.cm-box{width:100%;max-width:340px;background:#0e0e10;border:1px solid var(--line);border-radius:22px;overflow:hidden;transform:scale(0.96);transition:transform .22s cubic-bezier(.22,.61,.36,1);box-shadow:0 30px 80px -10px rgba(0,0,0,0.8);}
+.cm-overlay.open .cm-box{transform:scale(1);}
+.cm-head{padding:24px 22px 8px;text-align:center;}
+.cm-icon{width:54px;height:54px;border-radius:18px;background:linear-gradient(135deg,rgba(61,255,110,0.18),rgba(61,255,110,0.05));border:1px solid rgba(61,255,110,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--brand);}
+.cm-icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;}
+.cm-title{font-family:var(--font-heavy);font-size:20px;letter-spacing:-0.02em;color:#fff;line-height:1.15;}
+.cm-body{padding:6px 22px 18px;}
+.cm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;}
+.cm-row:last-child{border-bottom:none;}
+.cm-row .cm-k{color:var(--text-dim);}
+.cm-row .cm-v{color:#fff;font-weight:700;}
+.cm-row .cm-v.brand{color:var(--brand);}
+.cm-note{padding:0 22px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.02em;line-height:1.5;text-align:center;}
+.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 18px 18px;}
+.cm-btn{padding:14px;border:none;border-radius:14px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:opacity .18s,transform .15s;}
+.cm-btn:active{transform:scale(0.97);}
+.cm-btn.ghost{background:rgba(255,255,255,0.05);color:#fff;border:1px solid var(--line);}
+.cm-btn.primary{background:var(--brand);color:#000;}
+.cm-btn:disabled{opacity:0.55;cursor:wait;}
+
+/* ── Transaction history ───────────────────────── */
+.tx-list{margin:0 20px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.02);}
+.tx-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);}
+.tx-row:last-child{border-bottom:none;}
+.tx-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-dim);}
+.tx-icon svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+.tx-icon.plus{background:rgba(61,255,110,0.12);color:var(--brand);}
+.tx-icon.minus{background:rgba(255,77,109,0.12);color:var(--danger);}
+.tx-text{flex:1;min-width:0;}
+.tx-title{font-family:var(--font-mono);font-size:11px;color:#fff;font-weight:600;letter-spacing:0.02em;line-height:1.2;}
+.tx-sub{font-family:var(--font-mono);font-size:9px;color:var(--text-mute);letter-spacing:0.04em;margin-top:3px;}
+.tx-amt{font-family:var(--font-heavy);font-size:14px;letter-spacing:-0.01em;flex-shrink:0;}
+.tx-amt.plus{color:var(--brand);}
+.tx-amt.minus{color:var(--danger);}
+.tx-empty{padding:18px 14px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-mute);letter-spacing:0.02em;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <div class="sub-header">
+    <div class="back-btn" id="backBtn">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title">Subscription</div>
+    <div></div>
+  </div>
+
+  <div class="app-scroll" id="content">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;">
+      <div class="loading-ring"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<!-- Confirm modal -->
+<div class="cm-overlay" id="cmOverlay">
+  <div class="cm-box" role="dialog" aria-modal="true">
+    <div class="cm-head">
+      <div class="cm-icon" id="cmIcon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg>
+      </div>
+      <div class="cm-title" id="cmTitle">Confirm</div>
+    </div>
+    <div class="cm-body" id="cmBody"></div>
+    <div class="cm-note" id="cmNote"></div>
+    <div class="cm-actions">
+      <button class="cm-btn ghost" id="cmCancel">Cancel</button>
+      <button class="cm-btn primary" id="cmConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor('#070707'); tg.setBackgroundColor && tg.setBackgroundColor('#070707'); }
+function getInitData(){ return (tg && tg.initData) ? tg.initData : ''; }
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  if (history.length > 1) history.back(); else location.href = 'profile.html';
+});
+
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast'), m = document.getElementById('toastMsg');
+  m.textContent = msg;
+  t.style.borderColor = err ? 'rgba(255,77,109,0.35)' : 'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background = err ? 'var(--danger)' : 'var(--brand)';
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtPriceRub(v) {
+  if (!v) return '0 ₽';
+  return v.toLocaleString('ru-RU') + ' ₽';
+}
+
+const SVG_CHECK = '<svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>';
+const SVG_COIN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg>';
+const SVG_ARROW = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+let _state = null;
+let _history = [];
+
+async function loadAll() {
+  try {
+    const headers = { 'X-Telegram-Init-Data': getInitData() };
+    const [subRes, hisRes] = await Promise.all([
+      fetch('/api/subscription', { headers }),
+      fetch('/api/tokens/history', { headers }).catch(() => null),
+    ]);
+    if (subRes.status === 401) {
+      document.getElementById('content').innerHTML = '<div class="err-box">Open this page from inside Telegram to see plans.</div>';
+      return;
+    }
+    if (!subRes.ok) throw new Error('http ' + subRes.status);
+    _state = await subRes.json();
+    if (hisRes && hisRes.ok) {
+      const h = await hisRes.json().catch(() => ({}));
+      _history = h.history || [];
+    } else {
+      _history = [];
+    }
+    render();
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      '<div class="err-box">Couldn\'t load plans. <br>Check your connection and try again.</div>';
+  }
+}
+
+// ── Friendly labels for transaction reasons ──
+function txLabel(reason, ref_id, amount) {
+  const r = String(reason || '');
+  if (r === 'welcome_grant')   return 'Welcome bonus';
+  if (r === 'plan_grant')      return 'Plan activation' + (ref_id ? ' · ' + ref_id : '');
+  if (r === 'tokens_purchase') return 'Token pack purchase';
+  if (r === 'invite_bonus')    return 'Invite bonus' + (ref_id ? ' · friend ' + ref_id : '');
+  if (r === 'admin_set' || r === 'admin_reset') return 'Admin adjustment';
+  if (r === 'admin_plan_reset') return 'Admin reset';
+  if (r === 'model_create')    return 'Model creation';
+  if (r.startsWith('video_gen_')) {
+    const q = r.replace('video_gen_', '');
+    return 'Video generation · ' + q;
+  }
+  if (r === 'video_gen')       return 'Video generation';
+  return r || (amount > 0 ? 'Credit' : 'Debit');
+}
+
+function fmtTxDate(s) {
+  if (!s) return '';
+  try {
+    const d = new Date(s.replace(' ', 'T') + 'Z');
+    const today = new Date();
+    const sameDay = d.toDateString() === today.toDateString();
+    if (sameDay) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+           ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch (e) { return s; }
+}
+
+const PLAN_ORDER = ['free', 'beginner', 'advancer'];
+function planRank(id) { const i = PLAN_ORDER.indexOf(id); return i < 0 ? 0 : i; }
+
+function planButtonState(planId, currentPlan) {
+  const curRank = planRank(currentPlan);
+  const newRank = planRank(planId);
+
+  if (planId === 'free') {
+    return currentPlan === 'free'
+      ? { label: 'Current plan', cls: 'ghost disabled', disabled: true }
+      : { label: 'Free tier', cls: 'ghost disabled', disabled: true };
+  }
+  if (planId === currentPlan) {
+    return { label: 'Active · Renew', cls: 'ghost', disabled: false };
+  }
+  if (newRank < curRank) {
+    // Downgrade blocked while higher plan is active.
+    return { label: 'Lower than current', cls: 'ghost disabled', disabled: true };
+  }
+  return { label: 'Subscribe', cls: 'primary', disabled: false };
+}
+
+function planRecommended(planId, currentPlan) {
+  if (currentPlan === 'free' && planId === 'beginner') return true;
+  if (currentPlan === 'beginner' && planId === 'advancer') return true;
+  return planId === 'advancer' && currentPlan !== 'advancer';
+}
+
+function render() {
+  const cur = _state.current;
+  const cfg = _state.config;
+  const plans = cfg.plans;
+  const packs = cfg.token_packs;
+
+  const planMeta = plans.find(p => p.id === cur.plan) || plans[0];
+  let expires = null;
+  if (cur.plan_expires_at) {
+    try {
+      expires = new Date(cur.plan_expires_at.replace(' ', 'T') + 'Z')
+        .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch (e) {}
+  }
+
+  const root = document.createElement('div');
+
+  // ── Hero & balance ──
+  const hero = document.createElement('div');
+  hero.innerHTML =
+    '<div class="sub-hero">' +
+      '<div style="font-family:var(--font-heavy);font-size:28px;letter-spacing:-0.03em;color:#fff;line-height:1.1">Plans &amp; Tokens</div>' +
+      '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:8px;letter-spacing:0.04em;line-height:1.6">A token is a small unit of generation.<br>Video = ' + (cur.video_gen_cost_base != null ? cur.video_gen_cost_base : cur.video_gen_cost) + '–' + (cur.video_gen_cost_hd != null ? cur.video_gen_cost_hd : cur.video_gen_cost) + ' tokens · Model = ' + cur.model_create_cost + ' tokens</div>' +
+    '</div>' +
+    '<div class="sub-balance-card">' +
+      '<div class="bc-icon">' + SVG_COIN + '</div>' +
+      '<div class="bc-text">' +
+        '<div class="bc-lbl">Balance</div>' +
+        '<div class="bc-val">' + cur.tokens_balance + '<span class="unit">tokens</span></div>' +
+        '<div class="bc-plan">Current plan: <b>' + escapeHtml(planMeta.name) + '</b>' + (expires ? (' · until ' + expires) : '') + '</div>' +
+      '</div>' +
+    '</div>';
+  root.appendChild(hero);
+
+  // ── Plans ──
+  const plansTitle = document.createElement('div');
+  plansTitle.className = 'sub-section-title';
+  plansTitle.textContent = 'Plans';
+  root.appendChild(plansTitle);
+
+  plans.forEach(p => {
+    const bs = planButtonState(p.id, cur.plan);
+    const isCurrent = p.id === cur.plan;
+    const isRec = planRecommended(p.id, cur.plan);
+
+    const card = document.createElement('div');
+    card.className = 'plan-card' + (isCurrent ? ' current' : '') + (isRec ? ' recommended' : '');
+
+    const featsHtml = (p.features || [])
+      .map(f => '<li>' + SVG_CHECK + '<span>' + escapeHtml(f) + '</span></li>')
+      .join('');
+    const priceCls = p.id === 'free' ? 'free' : '';
+    const periodTxt = p.price_rub ? '/mo' : '';
+
+    card.innerHTML =
+      '<div class="pc-head">' +
+        '<div>' +
+          '<div class="pc-name">' + escapeHtml(p.name) + '</div>' +
+          '<div class="pc-tagline">' + escapeHtml(p.tagline || '') + '</div>' +
+        '</div>' +
+        '<div class="pc-price ' + priceCls + '">' + fmtPriceRub(p.price_rub) + '<span class="pc-period">' + periodTxt + '</span></div>' +
+      '</div>' +
+      '<ul class="pc-feats">' + featsHtml + '</ul>';
+
+    const btn = document.createElement('button');
+    btn.className = 'pc-cta ' + bs.cls;
+    btn.textContent = bs.label;
+    btn.disabled = bs.disabled;
+    if (!bs.disabled) {
+      btn.addEventListener('click', () => buyPlan(p.id));
+    }
+    card.appendChild(btn);
+    root.appendChild(card);
+  });
+
+  // ── Token packs ──
+  const packsTitle = document.createElement('div');
+  packsTitle.className = 'sub-section-title';
+  packsTitle.textContent = 'Top up tokens';
+  root.appendChild(packsTitle);
+
+  if (!cur.can_buy_tokens) {
+    const hint = document.createElement('div');
+    hint.className = 'locked-hint';
+    hint.textContent = 'Token top-ups are available on Beginner and Advancer plans.';
+    root.appendChild(hint);
+  }
+
+  packs.forEach(pk => {
+    const row = document.createElement('div');
+    row.className = 'token-pack' + (pk.highlight ? ' highlight' : '') + (cur.can_buy_tokens ? '' : ' locked');
+    row.innerHTML =
+      '<div class="tp-left">' +
+        '<div class="tp-icon">' + SVG_COIN + '</div>' +
+        '<div class="tp-info">' +
+          '<div class="tp-tokens">' + pk.tokens.toLocaleString('en-US') + ' tokens</div>' +
+          '<div class="tp-label">' + escapeHtml(pk.label || '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tp-price">' + fmtPriceRub(pk.price_rub) + '</div>';
+    row.addEventListener('click', () => {
+      if (cur.can_buy_tokens) buyPack(pk.id);
+      else showToast('Available on a paid plan', true);
+    });
+    root.appendChild(row);
+  });
+
+  // ── Link to full transaction history ──
+  const histLink = document.createElement('div');
+  histLink.className = 'hist-link';
+  histLink.style.cssText = 'margin:6px 20px 0;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--line);display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .18s;';
+  histLink.addEventListener('mouseenter', () => histLink.style.borderColor = 'rgba(255,255,255,0.18)');
+  histLink.addEventListener('mouseleave', () => histLink.style.borderColor = 'var(--line)');
+  histLink.addEventListener('click', () => { location.href = 'tokens_history.html'; });
+  histLink.innerHTML =
+    '<div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;color:var(--text-dim);flex-shrink:0;">' +
+      '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="12 6 12 12 16 14"/><circle cx="12" cy="12" r="10"/></svg>' +
+    '</div>' +
+    '<div style="flex:1;min-width:0;">' +
+      '<div style="font-family:var(--font-mono);font-size:12px;color:#fff;font-weight:600;letter-spacing:0.02em">Transaction history</div>' +
+      '<div style="font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);margin-top:3px;letter-spacing:0.04em">' +
+        (_history.length ? _history.length + ' recorded · earned, spent, refunded' : 'See every credit and debit') +
+      '</div>' +
+    '</div>' +
+    '<div style="color:var(--text-mute);">' +
+      '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2"><path d="M9 6l6 6-6 6"/></svg>' +
+    '</div>';
+  root.appendChild(histLink);
+
+  // ── FAQ ──
+  const faqTitle = document.createElement('div');
+  faqTitle.className = 'sub-section-title';
+  faqTitle.textContent = 'FAQ';
+  root.appendChild(faqTitle);
+
+  const faqWrap = document.createElement('div');
+  faqWrap.className = 'faq';
+  const inviteBonus = (cfg.invite_bonus_tokens != null) ? cfg.invite_bonus_tokens : 50;
+  faqWrap.innerHTML =
+    '<div class="faq-item"><div class="faq-q">What are tokens?</div><div class="faq-a">Internal credits used by the service. Each generation deducts a fixed amount from your balance.</div></div>' +
+    '<div class="faq-item"><div class="faq-q">How do I earn free tokens?</div><div class="faq-a">Invite a friend — when they open the mini-app via your link, you receive +' + inviteBonus + ' tokens. There\'s no limit on how many friends you can invite.</div></div>' +
+    '<div class="faq-item"><div class="faq-q">What happens when my plan expires?</div><div class="faq-a">Your account drops back to Free. Existing tokens stay on your balance and follow Free-plan limits.</div></div>' +
+    '<div class="faq-item"><div class="faq-q">Can I get a refund for a failed generation?</div><div class="faq-a">If a generation failed because of an issue on our side, contact support and we\'ll refund the tokens.</div></div>';
+  root.appendChild(faqWrap);
+
+  const spacer = document.createElement('div');
+  spacer.style.height = '32px';
+  root.appendChild(spacer);
+
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  content.appendChild(root);
+  if (window.pageStagger) window.pageStagger(content);
+}
+
+// ── Inline confirm modal (заменяет window.confirm) ──
+const SVG_STAR = '<svg viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z" stroke-linejoin="round"/></svg>';
+const SVG_COIN_PILE = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg>';
+
+function showConfirm({ title, rows, note, confirmLabel, cancelLabel, icon }) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('cmOverlay');
+    const titleEl = document.getElementById('cmTitle');
+    const bodyEl = document.getElementById('cmBody');
+    const noteEl = document.getElementById('cmNote');
+    const okBtn = document.getElementById('cmConfirm');
+    const cnBtn = document.getElementById('cmCancel');
+    const iconEl = document.getElementById('cmIcon');
+
+    titleEl.textContent = title || 'Confirm';
+    iconEl.innerHTML = icon || SVG_COIN_PILE;
+    bodyEl.innerHTML = (rows || []).map(r =>
+      '<div class="cm-row"><span class="cm-k">' + escapeHtml(r.k) +
+      '</span><span class="cm-v ' + (r.brand ? 'brand' : '') + '">' + escapeHtml(r.v) + '</span></div>'
+    ).join('');
+    noteEl.textContent = note || '';
+    noteEl.style.display = note ? '' : 'none';
+    okBtn.textContent = confirmLabel || 'Confirm';
+    cnBtn.textContent = cancelLabel || 'Cancel';
+    okBtn.disabled = false;
+
+    const close = (result) => {
+      overlay.classList.remove('open');
+      okBtn.onclick = null; cnBtn.onclick = null; overlay.onclick = null;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred && tg.HapticFeedback.impactOccurred('light');
+      resolve(result);
+    };
+    okBtn.onclick = () => { okBtn.disabled = true; close(true); };
+    cnBtn.onclick = () => close(false);
+    overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+    overlay.classList.add('open');
+  });
+}
+
+async function buyPlan(planId) {
+  const plan = (_state.config.plans || []).find(p => p.id === planId);
+  if (!plan) return;
+  const isRenew = _state.current.plan === planId;
+  const ok = await showConfirm({
+    title: isRenew ? 'Renew ' + plan.name : 'Subscribe to ' + plan.name,
+    icon: SVG_STAR,
+    rows: [
+      { k: 'Plan',   v: plan.name },
+      { k: 'Price',  v: fmtPriceRub(plan.price_rub) + ' / mo', brand: true },
+      { k: 'Tokens included', v: '+' + plan.tokens_grant.toLocaleString('en-US') },
+      { k: 'Period', v: (_state.config.plan_period_days || 30) + ' days' },
+    ],
+    note: 'Tap Confirm to activate the plan immediately.',
+    confirmLabel: isRenew ? 'Renew' : 'Subscribe',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch('/api/subscription/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': getInitData() },
+      body: JSON.stringify({ plan: planId })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) { showToast(d.error || 'Subscription failed', true); return; }
+    showToast('Plan activated 🎉');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    setTimeout(loadAll, 400);
+  } catch (e) { showToast('Network unavailable', true); }
+}
+
+async function buyPack(packId) {
+  const pk = (_state.config.token_packs || []).find(p => p.id === packId);
+  if (!pk) return;
+  const ok = await showConfirm({
+    title: 'Top up tokens',
+    icon: SVG_COIN_PILE,
+    rows: [
+      { k: 'Pack',   v: pk.label || (pk.tokens + ' tokens') },
+      { k: 'Tokens', v: '+' + pk.tokens.toLocaleString('en-US'), brand: true },
+      { k: 'Price',  v: fmtPriceRub(pk.price_rub) },
+    ],
+    note: 'Tokens will be added instantly.',
+    confirmLabel: 'Buy',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch('/api/tokens/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': getInitData() },
+      body: JSON.stringify({ pack_id: packId })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) { showToast(d.error || 'Purchase failed', true); return; }
+    showToast('+' + d.added + ' tokens');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    setTimeout(loadAll, 400);
+  } catch (e) { showToast('Network unavailable', true); }
+}
+
+loadAll();
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

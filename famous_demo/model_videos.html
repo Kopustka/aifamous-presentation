@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Model Videos</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+.all-videos-grid{padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.load-more-wrap{display:flex;justify-content:center;padding:0 20px 20px;}
+.load-more-btn{background:rgba(255,255,255,0.06);border:1px solid var(--line-2);border-radius:999px;padding:13px 44px;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:0.06em;transition:background .2s;}
+.load-more-btn:hover{background:rgba(255,255,255,0.1);}
+.load-more-btn:disabled{opacity:0.4;cursor:default;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <div class="sub-header">
+    <div class="back-btn" onclick="history.back()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title" id="pageTitle">Videos</div>
+    <div class="sub-step" id="totalLabel">—</div>
+  </div>
+
+  <div class="app-scroll">
+    <div class="list-header">
+      <div>
+        <div class="lh-title" id="modelNameDisplay">Model</div>
+        <div class="lh-count" id="countDisplay">Loading...</div>
+      </div>
+    </div>
+
+    <div class="all-videos-grid" id="videosGrid">
+      <div class="loading-ring" style="grid-column:1/-1"></div>
+    </div>
+
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">Load more</button>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn active" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Video modal -->
+<div class="video-modal" id="videoModal">
+  <div class="vm-header">
+    <div class="vm-close" onclick="closeVideoModal()"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    <div class="vm-share" onclick="showToast('Link copied')"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+  </div>
+  <div class="vm-player" id="vmPlayer"></div>
+  <div class="vm-footer" id="vmFooter"></div>
+</div>
+
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+const params=new URLSearchParams(location.search);
+const modelId=params.get('id');
+const modelName=decodeURIComponent(params.get('name')||'Model');
+const modelPreview=decodeURIComponent(params.get('preview')||'');
+document.getElementById('modelNameDisplay').textContent=modelName;
+document.getElementById('pageTitle').textContent=modelName+' videos';
+
+let offset=0, LIMIT=12, total=0, loading=false, currentItem=null;
+
+function fmtDate(s){return s?s.slice(0,10):'';}
+function modeBadge(mode){return mode?mode.replace(/_/g,' '):'gen';}
+
+async function loadVideos(reset=false){
+  if(loading||!modelId) return;
+  loading=true;
+  const grid=document.getElementById('videosGrid'),wrap=document.getElementById('loadMoreWrap'),btn=document.getElementById('loadMoreBtn');
+  if(reset){offset=0;grid.innerHTML='<div class="loading-ring" style="grid-column:1/-1"></div>';wrap.style.display='none';}
+  if(btn) btn.disabled=true;
+  try{
+    const res=await fetch(`/api/model/${modelId}/videos?offset=${offset}&limit=${LIMIT}`,{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error();
+    const data=await res.json(); const items=data.items||[]; total=data.total||0;
+    if(reset) grid.innerHTML='';
+    if(!items.length&&offset===0){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No videos for this model yet</div>';}
+    else{
+      items.forEach(item=>{
+        const card=document.createElement('div'); card.className='video-card';
+        const mode=modeBadge(item.mode), date=fmtDate(item.finished_at);
+        card.innerHTML=`
+          <video src="${item.video_url}" autoplay muted loop playsinline></video>
+          <div class="v-top">
+            <span class="v-badge">${mode}</span>
+            <span class="v-duration">${date}</span>
+          </div>`;
+        card.addEventListener('click',()=>openVideoModal(item));
+        grid.appendChild(card);
+      });
+      offset+=items.length;
+    }
+    document.getElementById('countDisplay').textContent=total+' videos';
+    document.getElementById('totalLabel').textContent=total+' TOTAL';
+    wrap.style.display=offset<total?'flex':'none';
+    if(btn) btn.disabled=false;
+  }catch(e){
+    if(offset===0) document.getElementById('videosGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1">No videos yet</div>';
+    if(btn) btn.disabled=false;
+  }
+  loading=false;
+}
+function loadMore(){loadVideos(false);}
+
+function openVideoModal(item){
+  currentItem=item;
+  const player=document.getElementById('vmPlayer'),footer=document.getElementById('vmFooter');
+  const mode=modeBadge(item.mode);
+  player.innerHTML=`
+    <video src="${item.video_url}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div class="vm-model-chip">
+      <div class="mc-av" style="background-image:url('${modelPreview}')"></div>
+      <span class="mc-name">${modelName.toUpperCase()}</span>
+    </div>
+    <div class="vm-big-play" onclick="toggleVmPlay(this)"><svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#fff;margin-left:3px"><polygon points="6 4 20 12 6 20"/></svg></div>
+    <div class="vm-progress"><div class="vm-progress-fill" id="vmProgFill"></div></div>`;
+  footer.innerHTML=`
+    <div class="vm-title">${mode} · ${modelName}</div>
+    ${item.prompt?`<div class="vm-desc">${item.prompt}</div>`:''}
+    <div class="vm-actions">
+      <a class="vm-action primary" href="${item.video_url}" download>
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save
+      </a>
+      <div class="vm-action" onclick="deleteVideo('${item.id}')">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Delete
+      </div>
+    </div>`;
+  document.getElementById('videoModal').classList.add('open');
+}
+function closeVideoModal(){document.getElementById('videoModal').classList.remove('open');}
+function toggleVmPlay(btn){
+  const fill=document.getElementById('vmProgFill'),playing=btn.dataset.playing==='1';
+  if(playing){btn.dataset.playing='0';btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#fff;margin-left:3px"><polygon points="6 4 20 12 6 20"/></svg>';if(fill)fill.classList.remove('vm-progress-fill-anim');}
+  else{btn.dataset.playing='1';btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px"><rect x="6" y="5" width="4" height="14" fill="#fff"/><rect x="14" y="5" width="4" height="14" fill="#fff"/></svg>';if(fill){fill.style.width='0%';void fill.offsetWidth;fill.classList.add('vm-progress-fill-anim');}}
+}
+async function deleteVideo(id){
+  if(!confirm('Delete this video?')) return;
+  try{
+    const res=await fetch('/api/video/'+id+'/delete',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}});
+    const d=await res.json();
+    if(d.ok){closeVideoModal();loadVideos(true);showToast('Deleted');}
+  }catch(e){}
+}
+document.getElementById('videoModal').addEventListener('click',function(e){if(e.target===this)closeVideoModal();});
+
+if(!modelId) document.getElementById('videosGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1">No model selected</div>';
+else loadVideos(true);
+</script>
+<script src="components/famous.js"></script>
+</body>
+</html>

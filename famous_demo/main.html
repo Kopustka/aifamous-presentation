@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Hero ─────────────────────────────────────────── */
+.hero{padding:22px 20px 0;}
+.hero-meta{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;}
+.hero-meta .live-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 0 rgba(61,255,110,0.6);animation:pulse 1.8s ease-out infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,255,110,0.7);}70%{box-shadow:0 0 0 10px rgba(61,255,110,0);}100%{box-shadow:0 0 0 0 rgba(61,255,110,0);}}
+.hero-title{font-family:var(--font-heavy);font-size:44px;line-height:0.92;letter-spacing:-0.04em;color:#fff;text-wrap:balance;}
+.hero-title .accent{background:linear-gradient(135deg,var(--brand) 0%,#7dff9a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative;display:inline-block;}
+.hero-title .strike{text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:var(--accent);color:var(--text-mute);font-weight:900;}
+.hero-sub{margin-top:12px;font-size:14px;line-height:1.45;color:var(--text-dim);font-family:var(--font-display);font-weight:400;max-width:320px;}
+
+/* ── Ticker ───────────────────────────────────────── */
+.ticker{margin:18px -0px 0;overflow:hidden;position:relative;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 0;background:rgba(255,255,255,0.02);mask:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);}
+.ticker-track{display:flex;gap:28px;white-space:nowrap;animation:marquee 32s linear infinite;width:max-content;}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:var(--text);font-weight:500;letter-spacing:0.02em;}
+.ticker-item .t-dot{width:4px;height:4px;border-radius:50%;background:var(--brand);flex-shrink:0;}
+.ticker-item .t-num{color:var(--brand);font-weight:700;}
+@keyframes marquee{to{transform:translateX(-50%);}}
+
+/* ── CTA grid ─────────────────────────────────────── */
+.cta-grid{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.cta-card{position:relative;border-radius:22px;padding:16px 14px;background:var(--panel);border:1px solid var(--line);cursor:pointer;overflow:hidden;aspect-ratio:1/1.12;display:flex;flex-direction:column;justify-content:space-between;transition:transform .3s cubic-bezier(.22,.61,.36,1),border-color .3s;will-change:transform;}
+.cta-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.25);}
+.cta-card:active{transform:translateY(-1px) scale(0.99);}
+.cta-card.primary{background:linear-gradient(165deg,#54ff80 0%,#2fde5c 55%,#1fb846 100%);border-color:transparent;color:#001b08;}
+.cta-card.primary::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.25),transparent 50%);pointer-events:none;}
+.cta-card .cta-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);}
+.cta-card.secondary .cta-icon{background:rgba(255,255,255,0.05);border-color:var(--line-2);}
+.cta-card .cta-icon svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;}
+.cta-card .cta-badge{position:absolute;top:12px;right:12px;font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.06em;background:rgba(0,0,0,0.25);padding:3px 8px;border-radius:999px;backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,0.15);}
+.cta-card.secondary .cta-badge{background:rgba(255,255,255,0.05);color:var(--text-dim);border-color:var(--line);}
+.cta-card .cta-body{margin-top:auto;}
+.cta-card .cta-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.7;margin-bottom:2px;}
+.cta-card .cta-title{font-family:var(--font-heavy);font-size:22px;line-height:0.95;letter-spacing:-0.03em;}
+.cta-card .cta-arrow{position:absolute;bottom:14px;right:14px;width:30px;height:30px;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;transition:transform .3s;}
+.cta-card.secondary .cta-arrow{background:var(--brand);color:#000;}
+.cta-card:hover .cta-arrow{transform:rotate(-45deg) translateX(2px);}
+.cta-card .cta-arrow svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;}
+.cta-stripe{position:absolute;left:-20%;top:-40%;width:40%;height:200%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);transform:rotate(18deg);pointer-events:none;animation:shine 4s ease-in-out infinite;}
+@keyframes shine{0%,70%{left:-20%;}100%{left:120%;}}
+
+/* ── Models 3D carousel ───────────────────────────── */
+.models-viewport{height:220px;position:relative;overflow:visible;margin-bottom:10px;perspective:1200px;}
+.models-track{height:100%;position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,.61,.36,1);}
+.model-card{position:absolute;top:50%;left:50%;width:140px;height:190px;border-radius:22px;overflow:hidden;cursor:grab;user-select:none;transition:all .5s cubic-bezier(.22,.61,.36,1);will-change:transform;box-shadow:0 20px 40px -10px rgba(0,0,0,0.5);}
+.model-card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;}
+.model-card::after{content:"";position:absolute;inset:0;border-radius:22px;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,0.85) 100%);pointer-events:none;}
+.model-card .m-name{position:absolute;bottom:12px;left:12px;right:12px;font-family:var(--font-heavy);font-size:16px;letter-spacing:-0.02em;color:#fff;line-height:1;z-index:2;}
+.model-card .m-tag{position:absolute;top:10px;left:10px;font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.08em;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);padding:3px 7px;border-radius:999px;color:var(--brand);border:1px solid rgba(61,255,110,0.3);z-index:2;}
+.model-card .m-tag.hot{color:var(--accent);border-color:rgba(255,61,158,0.3);}
+.model-card.active{z-index:10;box-shadow:0 30px 60px -10px rgba(0,0,0,0.8),0 0 0 2px var(--brand);}
+.model-card.active .m-name{font-size:18px;}
+.model-add-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+.model-add{width:140px;height:190px;border-radius:22px;border:1.5px dashed rgba(255,255,255,0.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;background:var(--bg);cursor:pointer;transition:border-color .3s,background .3s,color .3s;}
+.model-add:hover{border-color:var(--brand);color:var(--brand);background:var(--bg);}
+.model-add .plus{width:40px;height:40px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;}
+
+.models-dots{display:flex;gap:6px;justify-content:center;margin-top:8px;margin-bottom:4px;}
+.models-dots .dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.2);transition:background .3s,width .3s;cursor:pointer;}
+.models-dots .dot.active{background:var(--brand);width:18px;border-radius:3px;}
+.model-name-large{text-align:center;margin-top:12px;padding:0 20px;font-family:var(--font-heavy);font-size:14px;letter-spacing:0.04em;color:#fff;text-transform:uppercase;min-height:18px;}
+.model-bio-line{text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:4px;letter-spacing:0.02em;padding:0 30px;margin-bottom:4px;}
+
+/* ── Recent video grid ────────────────────────────── */
+.recent-grid{padding:0 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* ── Stats strip ──────────────────────────────────── */
+.stats-strip{padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stat-card{padding:14px 12px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));border:1px solid var(--line);position:relative;overflow:hidden;}
+.stat-card .s-num{font-family:var(--font-heavy);font-size:22px;letter-spacing:-0.03em;color:#fff;line-height:1;}
+.stat-card .s-num .unit{font-size:13px;color:var(--text-dim);margin-left:2px;font-weight:400;}
+.stat-card .s-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-mute);margin-top:6px;}
+.stat-card .s-delta{display:inline-flex;align-items:center;gap:2px;font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--brand);background:rgba(61,255,110,0.1);padding:2px 5px;border-radius:4px;margin-top:4px;}
+
+/* ── Privacy panel ────────────────────────────────── */
+.priv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;backdrop-filter:blur(4px);}
+.priv-overlay.open{display:block;}
+.priv-sheet{position:fixed;bottom:0;left:0;right:0;background:#111114;border-radius:24px 24px 0 0;z-index:301;padding:0 20px max(24px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.priv-sheet.open{transform:translateY(0);}
+.priv-handle{width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:12px auto 18px;}
+.priv-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;}
+.priv-vis{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;margin-bottom:12px;}
+.priv-vis.pub{background:rgba(61,255,110,0.08);border:1px solid rgba(61,255,110,0.25);}
+.priv-vis.prv{background:rgba(255,255,255,0.04);border:1px solid var(--line);}
+.priv-vis svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke-width:2;}
+.priv-vis.pub svg{stroke:var(--brand);}
+.priv-vis.prv svg{stroke:var(--text-dim);}
+.priv-vis-text{flex:1;}
+.priv-vis-title{font-size:14px;font-weight:600;color:#fff;}
+.priv-vis-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px;}
+.priv-toggle-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 14px;font-family:var(--font-mono);font-size:11px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;}
+.priv-share-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:14px;background:var(--brand);color:#000;border:none;font-family:var(--font-mono);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;letter-spacing:0.04em;}
+.priv-share-btn svg{width:15px;height:15px;stroke:#000;fill:none;stroke-width:2;}
+.priv-copy-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:14px;background:rgba(255,255,255,0.06);color:#fff;border:1px solid var(--line);font-family:var(--font-mono);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.04em;transition:border-color .2s,color .2s;}
+.priv-copy-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
+.priv-copy-btn.copied{border-color:var(--brand);color:var(--brand);}
+.priv-err{font-family:var(--font-mono);font-size:11px;color:#ff4d6d;text-align:center;padding:8px 0 4px;display:none;}
+.priv-err.show{display:block;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Header -->
+  <header class="main-header" id="mainHeader">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div class="brand-name">fam<span class="thin">ous</span></div>
+    </div>
+    <div class="top-actions">
+      <div class="credit-chip" id="creditChip" onclick="location.href='subscription.html'">
+        <svg class="spark" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z"/></svg>
+        <span id="creditCount">—</span>
+      </div>
+      <div class="avatar-btn" id="avatarBtn" onclick="location.href='profile.html'"></div>
+    </div>
+  </header>
+
+  <!-- Scrollable content -->
+  <div class="app-scroll">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-meta"><span class="live-dot"></span><span id="heroMeta">AI VIDEO GENERATION</span></div>
+      <h1 class="hero-title">Your <span class="accent">AI&nbsp;models</span><br>go <span class="strike">real</span> viral.</h1>
+      <p class="hero-sub">Generate photorealistic videos with your custom model. Face swap, wardrobe, scene — anything.</p>
+      <div class="ticker"><div class="ticker-track" id="tickerTrack"></div></div>
+    </div>
+
+    <!-- CTA cards -->
+    <div class="cta-grid">
+      <div class="cta-card primary" onclick="location.href='create_video.html'">
+        <div class="cta-stripe"></div>
+        <div class="cta-badge">15 SEC</div>
+        <div class="cta-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="14" height="16" rx="2"/><path d="M16 9l6-3v12l-6-3"/></svg>
+        </div>
+        <div class="cta-body">
+          <div class="cta-label">Generate</div>
+          <div class="cta-title">Create<br>Video</div>
+        </div>
+        <div class="cta-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+      <div class="cta-card secondary" onclick="location.href='create_model.html'">
+        <div class="cta-badge">AI · NEW</div>
+        <div class="cta-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14c1 1.5 2.5 2.5 4 2.5s3-1 4-2.5M9 10h.01M15 10h.01"/></svg>
+        </div>
+        <div class="cta-body">
+          <div class="cta-label">Identity</div>
+          <div class="cta-title">Create<br>Model</div>
+        </div>
+        <div class="cta-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </div>
+
+    <!-- Models section -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Your cast</div>
+        <h2>Models<span class="count" id="modelsCount">—</span></h2>
+      </div>
+      <div class="see-all" onclick="location.href='all_videos.html?tab=models'">All <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="models-viewport" id="modelsViewport">
+      <div class="models-track" id="modelsTrack"></div>
+    </div>
+    <div class="models-dots" id="modelsDots"></div>
+    <div class="model-name-large" id="modelNameLarge"><div class="loading-ring" style="margin:0 auto;width:20px;height:20px;border-width:2px;"></div></div>
+    <div class="model-bio-line" id="modelBioLine"></div>
+
+    <!-- Recent videos -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Latest drops</div>
+        <h2>Recent<span class="count" id="recentCount">—</span></h2>
+      </div>
+      <div class="see-all" onclick="location.href='all_videos.html'">All <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="recent-grid" id="recentGrid">
+      <div class="loading-ring" style="grid-column:1/-1"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-strip" id="statsStrip">
+      <div class="stat-card" onclick="location.href='tokens_history.html'" style="cursor:pointer">
+        <div class="s-num" id="statCredits">—</div>
+        <div class="s-label">Spent today</div>
+        <div class="s-delta" id="statPlanBadge">
+          <svg viewBox="0 0 24 24" style="width:8px;height:8px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          FREE
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="s-num" id="statGenerated">—</div>
+        <div class="s-label">Generated</div>
+        <div class="s-delta">
+          <svg viewBox="0 0 24 24" style="width:8px;height:8px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          total
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="s-num" id="statModels">—</div>
+        <div class="s-label">Models</div>
+        <div class="s-delta">
+          <svg viewBox="0 0 24 24" style="width:8px;height:8px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          active
+        </div>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn active" onclick="void(0)">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Video modal -->
+<div class="video-modal" id="videoModal">
+  <div class="vm-header">
+    <div class="vm-close" onclick="closeVideoModal()">
+      <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </div>
+    <div class="vm-share" onclick="openPrivacyPanel()">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </div>
+  </div>
+  <div class="vm-player" id="vmPlayer"></div>
+  <div class="vm-footer" id="vmFooter"></div>
+</div>
+
+<!-- Privacy panel -->
+<div class="priv-overlay" id="privOverlay" onclick="closePrivacyPanel()"></div>
+<div class="priv-sheet" id="privSheet">
+  <div class="priv-handle"></div>
+  <div class="priv-title">Video privacy</div>
+  <div id="privStatus"></div>
+  <div id="privActions"></div>
+  <div class="priv-err" id="privErr">Failed to update. Try again.</div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<!-- Confetti -->
+<div class="confetti" id="confetti"></div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if(tg){ tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor('#070707'); tg.setBackgroundColor && tg.setBackgroundColor('#070707'); }
+function getInitData(){ return (tg && tg.initData) ? tg.initData : ''; }
+
+function showToast(msg, err=false){
+  const t=document.getElementById('toast'), m=document.getElementById('toastMsg');
+  m.textContent=msg;
+  t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ── Ticker ──────────────────────────────────────── */
+function initTicker(){
+  const items=[['47','videos just generated'],['🔥','trending models live'],['AI','Face & Clothes best perf.'],['347','creators online'],['+12%','avg engagement rate'],['🎬','generate in 15 seconds']];
+  const track=document.getElementById('tickerTrack');
+  const html=items.map(([n,t])=>`<span class="ticker-item"><span class="t-dot"></span><span class="t-num">${n}</span><span>${t}</span></span>`).join('');
+  track.innerHTML=html+html;
+}
+function resetTicker(){
+  const track=document.getElementById('tickerTrack');
+  if(!track) return;
+  track.style.animation='none';
+  track.offsetHeight;
+  track.style.animation='';
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) resetTicker(); });
+window.addEventListener('pageshow', resetTicker);
+
+/* ── Models carousel ─────────────────────────────── */
+let allModels=[], modelIdx=0;
+
+async function loadModels(){
+  try{
+    const res=await fetch('/api/models',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error();
+    allModels=await res.json();
+  }catch(e){ allModels=[]; }
+  renderCarousel();
+  document.getElementById('modelsCount').textContent=allModels.length;
+  document.getElementById('statModels').innerHTML=`${allModels.length}<span class="unit">mdl</span>`;
+}
+
+function renderCarousel(){
+  const track=document.getElementById('modelsTrack');
+  const viewport=document.getElementById('modelsViewport');
+  if(!allModels.length){
+    track.innerHTML='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center"><div class="model-add" onclick="location.href=\'create_model.html\'" style="position:relative;transform:none"><div class="plus">+</div>ADD MODEL</div></div>';
+    document.getElementById('modelNameLarge').textContent='No models yet';
+    document.getElementById('modelBioLine').textContent='Create your first AI model';
+    document.getElementById('modelsDots').innerHTML='';
+    return;
+  }
+
+  const savedId=sessionStorage.getItem('selectedModelId');
+  if(savedId){ const f=allModels.findIndex(m=>String(m.id)===String(savedId)); if(f>=0) modelIdx=f; }
+
+  const cards=[...allModels,{_add:true}];
+  track.innerHTML=cards.map((m,i)=>{
+    if(m._add) return `<div class="model-card model-add-wrap" data-i="${i}" style="transform:translate(-50%,-50%)"><div class="model-add" onclick="location.href='create_model.html'"><div class="plus">+</div>NEW MODEL</div></div>`;
+    return `<div class="model-card" data-i="${i}" onclick="cardClick(${i},'${m.id}')">
+      <img src="${m.preview_url||''}" alt="${m.name}" onerror="this.style.opacity=0">
+      ${m.name?`<div class="m-name">${m.name}</div>`:''}
+    </div>`;
+  }).join('');
+
+  layoutCarousel();
+  renderDots();
+  updateLabel();
+
+  let startX=0, startIdx=0, dragging=false;
+  viewport.addEventListener('touchstart',e=>{dragging=true;startX=e.touches[0].clientX;startIdx=modelIdx;},{passive:true});
+  viewport.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const dx=e.touches[0].clientX-startX;
+    if(Math.abs(dx)>40){const dir=dx>0?-1:1;const next=Math.max(0,Math.min(cards.length-1,startIdx+dir));if(next!==modelIdx){modelIdx=next;layoutCarousel();renderDots();updateLabel();}startX=e.touches[0].clientX;startIdx=modelIdx;}
+  },{passive:true});
+  viewport.addEventListener('touchend',()=>{dragging=false;});
+  viewport.addEventListener('mousedown',e=>{dragging=true;startX=e.clientX;startIdx=modelIdx;});
+  window.addEventListener('mousemove',e=>{if(!dragging)return;const dx=e.clientX-startX;if(Math.abs(dx)>40){const dir=dx>0?-1:1;const next=Math.max(0,Math.min(cards.length-1,startIdx+dir));if(next!==modelIdx){modelIdx=next;layoutCarousel();renderDots();updateLabel();}startX=e.clientX;startIdx=modelIdx;}});
+  window.addEventListener('mouseup',()=>{dragging=false;});
+}
+
+function cardClick(i, id){
+  if(i===modelIdx && id){ location.href='model_detail.html?id='+id; return; }
+  modelIdx=i; layoutCarousel(); renderDots(); updateLabel();
+}
+
+function layoutCarousel(){
+  document.querySelectorAll('.model-card').forEach((el,i)=>{
+    const offset=i-modelIdx, abs=Math.abs(offset);
+    const tx=offset*105, rotY=offset*-22;
+    const scale=abs===0?1:abs===1?0.82:0.65;
+    const opacity=abs===0?1:abs===1?0.7:0.35;
+    el.style.transform=`translate(calc(-50% + ${tx}px), -50%) rotateY(${rotY}deg) scale(${scale})`;
+    el.style.opacity=opacity;
+    el.style.zIndex=10-abs;
+    el.classList.toggle('active',abs===0);
+  });
+}
+
+function renderDots(){
+  const dotsEl=document.getElementById('modelsDots');
+  const total=allModels.length+1;
+  dotsEl.innerHTML=Array.from({length:total}).map((_,i)=>`<div class="dot${i===modelIdx?' active':''}" onclick="modelIdx=${i};layoutCarousel();renderDots();updateLabel()"></div>`).join('');
+}
+
+function updateLabel(){
+  const m=allModels[modelIdx];
+  const nl=document.getElementById('modelNameLarge'), bl=document.getElementById('modelBioLine');
+  if(m){
+    nl.textContent=m.name||'';
+    bl.textContent=(m.bio||'')||'Click to view details';
+    sessionStorage.setItem('selectedModelId',m.id);
+    sessionStorage.setItem('selectedModelName',m.name);
+    sessionStorage.setItem('selectedModelPreview',m.preview_url||'');
+  } else {
+    nl.textContent='ADD NEW';
+    bl.textContent='Train a custom model with your photos';
+  }
+}
+
+/* ── Recent videos ───────────────────────────────── */
+async function loadRecent(){
+  const grid=document.getElementById('recentGrid');
+  try{
+    const res=await fetch('/api/recent',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error(res.status);
+    const items=await res.json();
+    grid.innerHTML='';
+    if(!items.length){ grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No generated content yet</div>'; return; }
+    document.getElementById('recentCount').textContent=items.length+' new';
+    items.slice(0,4).forEach(item=>{
+      const card=document.createElement('div');
+      card.className='video-card';
+      const mode=(item.mode||'gen').replace(/_/g,' ');
+      card.innerHTML=`
+        <video src="${item.video_url}" autoplay muted loop playsinline></video>
+        <div class="v-top">
+          <span class="v-badge">${mode}</span>
+          <span class="v-duration"></span>
+        </div>
+        <div class="v-bottom">
+          <div class="v-model">
+            <div class="m-av" style="background-image:url('${item.model_preview_url||''}')"></div>
+            ${item.model_name||''}
+          </div>
+        </div>`;
+      card.addEventListener('click',()=>openVideoModal(item));
+      grid.appendChild(card);
+    });
+  }catch(e){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No generated content yet</div>';
+  }
+}
+
+/* ── Profile / stats ─────────────────────────────── */
+async function loadProfile(){
+  try{
+    const res=await fetch('/api/profile',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) return;
+    const d=await res.json();
+    const total=(d.gen_success||0)+(d.gen_error||0);
+    document.getElementById('statGenerated').innerHTML=`${total}`;
+    const photoUrl=d.photo_url||(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.photo_url)||'';
+    if(photoUrl) document.getElementById('avatarBtn').style.backgroundImage=`url('${photoUrl}')`;
+    const name=[d.first_name,d.last_name].filter(Boolean).join(' ')||'';
+    if(name) document.getElementById('avatarBtn').title=name;
+    const cc=document.getElementById('creditCount');
+    if(cc) cc.textContent=(d.tokens_balance!=null)?d.tokens_balance:'—';
+    const sc=document.getElementById('statCredits');
+    if(sc) sc.textContent=(d.tokens_spent_today!=null?d.tokens_spent_today:0);
+    const sb=document.getElementById('statPlanBadge');
+    if(sb) sb.innerHTML='<svg viewBox="0 0 24 24" style="width:8px;height:8px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg> '+(d.plan_name||'Free').toUpperCase();
+  }catch(e){}
+}
+
+// Любой возврат на страницу — освежаем баланс/план (init + bfcache).
+window.addEventListener('pageshow', loadProfile);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadProfile();
+});
+
+/* ── Video modal ─────────────────────────────────── */
+let currentVideoItem=null, _mainPlayBtnTimer=null;
+function _mainScheduleHide(){
+  clearTimeout(_mainPlayBtnTimer);
+  _mainPlayBtnTimer=setTimeout(()=>{
+    const btn=document.querySelector('#vmPlayer .vm-big-play');
+    if(btn) btn.classList.add('hidden');
+  },2000);
+}
+function _mainShowPlayBtn(){
+  const btn=document.querySelector('#vmPlayer .vm-big-play');
+  if(btn) btn.classList.remove('hidden');
+  _mainScheduleHide();
+}
+function openVideoModal(item){
+  currentVideoItem=item;
+  const player=document.getElementById('vmPlayer'), footer=document.getElementById('vmFooter');
+  const mode=(item.mode||'gen').replace(/_/g,' ');
+  player.innerHTML=`
+    <video src="${item.video_url}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div class="vm-model-chip">
+      <div class="mc-av" style="background-image:url('${item.model_preview_url||''}')"></div>
+      <span class="mc-name">${(item.model_name||'').toUpperCase()}</span>
+    </div>
+    <div class="vm-big-play" data-playing="1" onclick="toggleVmPlay(this)"><svg viewBox="0 0 24 24" style="width:28px;height:28px"><rect x="6" y="5" width="4" height="14" fill="#fff"/><rect x="14" y="5" width="4" height="14" fill="#fff"/></svg></div>
+    <div class="vm-progress"><div class="vm-progress-fill" id="vmProgFill"></div></div>`;
+  player.addEventListener('click',e=>{if(!e.target.closest('.vm-big-play')) _mainShowPlayBtn();});
+  footer.innerHTML=`
+    <div class="vm-title">${mode}${item.model_name?' · '+item.model_name:''}</div>
+    ${item.prompt?`<div class="vm-desc">${item.prompt}</div>`:''}
+    <div class="vm-actions">
+      <a class="vm-action primary" href="${item.video_url}" download>
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save
+      </a>
+      <div class="vm-action" onclick="deleteVideo('${item.id}')">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Delete
+      </div>
+    </div>`;
+  document.getElementById('videoModal').classList.add('open');
+  _mainScheduleHide();
+}
+function closeVideoModal(){
+  clearTimeout(_mainPlayBtnTimer);
+  document.getElementById('videoModal').classList.remove('open');
+}
+function toggleVmPlay(btn){
+  const vid=document.querySelector('#vmPlayer video');
+  const fill=document.getElementById('vmProgFill'), playing=btn.dataset.playing==='1';
+  if(playing){
+    btn.dataset.playing='0';
+    btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#fff;margin-left:3px"><polygon points="6 4 20 12 6 20"/></svg>';
+    if(fill) fill.classList.remove('vm-progress-fill-anim');
+    if(vid) vid.pause();
+  } else {
+    btn.dataset.playing='1';
+    btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px"><rect x="6" y="5" width="4" height="14" fill="#fff"/><rect x="14" y="5" width="4" height="14" fill="#fff"/></svg>';
+    if(fill){fill.style.width='0%';void fill.offsetWidth;fill.classList.add('vm-progress-fill-anim');}
+    if(vid) vid.play();
+  }
+  _mainScheduleHide();
+}
+async function deleteVideo(id){
+  if(!confirm('Delete this video?')) return;
+  try{
+    const res=await fetch('/api/video/'+id+'/delete',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}});
+    const d=await res.json();
+    if(d.ok){ closeVideoModal(); loadRecent(); showToast('Deleted'); }
+  }catch(e){}
+}
+document.getElementById('videoModal').addEventListener('click',function(e){if(e.target===this)closeVideoModal();});
+
+/* ── Share / privacy ─────────────────────────────── */
+function shareVideo(){
+  if(!currentVideoItem) return;
+  if(!currentVideoItem.is_public){openPrivacyPanel();return;}
+  doShareVideo();
+}
+function doShareVideo(){
+  if(!currentVideoItem) return;
+  const url=location.origin+'/video_share.html?id='+currentVideoItem.id;
+  const tgShare='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent('Check out this AI-generated video 🎬');
+  if(tg&&tg.openLink){tg.openLink(tgShare);return;}
+  window.open(tgShare,'_blank');
+}
+function copyVideoLink(){
+  if(!currentVideoItem) return;
+  const url=location.origin+'/video_share.html?id='+currentVideoItem.id;
+  const btn=document.getElementById('privCopyBtn');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>{
+      showToast('Link copied!');
+      if(btn){btn.classList.add('copied');setTimeout(()=>btn.classList.remove('copied'),1500);}
+    });
+  }
+}
+function openPrivacyPanel(){
+  if(!currentVideoItem) return;
+  renderPrivacyPanel();
+  document.getElementById('privOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('privSheet').classList.add('open'),10);
+}
+function closePrivacyPanel(){
+  document.getElementById('privSheet').classList.remove('open');
+  setTimeout(()=>document.getElementById('privOverlay').classList.remove('open'),300);
+}
+function renderPrivacyPanel(){
+  const pub=!!currentVideoItem.is_public;
+  document.getElementById('privStatus').innerHTML=`
+    <div class="priv-vis ${pub?'pub':'prv'}">
+      <svg viewBox="0 0 24 24">
+        ${pub
+          ?'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'
+          :'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'}
+      </svg>
+      <div class="priv-vis-text">
+        <div class="priv-vis-title">${pub?'Public':'Private'}</div>
+        <div class="priv-vis-sub">${pub?'Anyone with the link can view':'Only you can see this video'}</div>
+      </div>
+      <button class="priv-toggle-btn" onclick="toggleVideoVisibility()">${pub?'Make private':'Make public'}</button>
+    </div>`;
+  document.getElementById('privActions').innerHTML=pub?`
+    <button class="priv-share-btn" onclick="doShareVideo();closePrivacyPanel()">
+      <svg viewBox="0 0 24 24"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7a2.25 2.25 0 0 0 .126 4.154l4.371 1.457 1.457 4.371a2.25 2.25 0 0 0 4.154.126l7-16.5a2.242 2.242 0 0 0-.586-2.823z" fill="#000" stroke="none"/></svg>
+      Share on Telegram
+    </button>
+    <button class="priv-copy-btn" id="privCopyBtn" onclick="copyVideoLink()">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Copy link
+    </button>`:'';
+}
+async function toggleVideoVisibility(){
+  if(!currentVideoItem) return;
+  const newVal=!currentVideoItem.is_public;
+  const btn=document.querySelector('#privStatus .priv-toggle-btn');
+  const errEl=document.getElementById('privErr');
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  if(errEl) errEl.classList.remove('show');
+  try{
+    const res=await fetch('/api/video/'+currentVideoItem.id+'/visibility',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({is_public:newVal}),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    currentVideoItem.is_public=newVal;
+    renderPrivacyPanel();
+    showToast(newVal?'Video is now public':'Video is now private');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=newVal?'Make public':'Make private';}
+    if(errEl) errEl.classList.add('show');
+  }
+}
+
+/* ── Active generation indicator ─────────────────── */
+function checkActiveGeneration(){
+  let saved=null;
+  try{saved=JSON.parse(sessionStorage.getItem('famous_active_gen')||'null');}catch(e){}
+  if(!saved||!saved.gen_id) return;
+  fetch('/api/generation/'+saved.gen_id+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}})
+    .then(r=>r.json()).then(d=>{
+      if(d.status==='running') showToast('Generation in progress — tap to view');
+    }).catch(()=>{});
+}
+
+/* ── Boot ────────────────────────────────────────── */
+window.addEventListener('load',()=>{
+  initTicker();
+  loadModels();
+  loadRecent();
+  loadProfile();
+  checkActiveGeneration();
+});
+
+// A freshly-created model (or a finished background gen) sets this flag.
+// Check on every page-show / visibility change so the carousel picks it up
+// regardless of whether the WebView used bfcache, a fresh reload, or neither.
+function famousRefreshIfDirty(){
+  try{
+    if(sessionStorage.getItem('famous_models_dirty')!=='1') return;
+    sessionStorage.removeItem('famous_models_dirty');
+  }catch(e){ return; }
+  loadModels();
+  loadRecent();
+  loadProfile();
+}
+window.addEventListener('pageshow',famousRefreshIfDirty);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) famousRefreshIfDirty(); });
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

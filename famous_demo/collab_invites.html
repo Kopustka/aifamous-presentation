@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Collaboration Invites</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* hero — приглушённо-зелёный фон вместо синего */
+.ci-hero{padding:24px 20px 8px;text-align:center;background:linear-gradient(180deg,rgba(61,255,110,0.05),transparent);}
+.ci-section-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.12em;text-transform:uppercase;padding:24px 20px 12px;}
+
+.ci-card{margin:0 20px 12px;border-radius:18px;background:rgba(255,255,255,0.03);border:1px solid var(--line);overflow:hidden;transition:opacity .25s,filter .25s;position:relative;}
+.ci-card.done{opacity:0.55;filter:saturate(0.5);}
+.ci-card.done .ci-name{color:#cfcfd5;}
+.ci-row{display:flex;align-items:center;gap:14px;padding:14px;}
+.ci-avatar{width:54px;height:54px;border-radius:14px;background:#222 center/cover no-repeat;border:1px solid rgba(255,255,255,0.1);flex-shrink:0;}
+/* placeholder — приглушённо-зелёный вместо голубого */
+.ci-avatar.placeholder{display:flex;align-items:center;justify-content:center;background:rgba(61,255,110,0.10);color:#7dff9a;font-family:var(--font-heavy);font-size:18px;}
+.ci-info{flex:1;min-width:0;}
+.ci-name{font-family:var(--font-heavy);font-size:18px;letter-spacing:-0.02em;color:#fff;line-height:1.1;}
+.ci-meta{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:5px;letter-spacing:0.04em;line-height:1.5;}
+.ci-meta b{color:#cfcfd5;}
+.ci-status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;}
+.ci-status-badge.accepted{background:rgba(61,255,110,0.10);color:var(--brand);border:1px solid rgba(61,255,110,0.25);}
+.ci-status-badge.declined{background:rgba(255,255,255,0.05);color:var(--text-mute);border:1px solid var(--line);}
+
+.ci-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 14px;}
+.ci-btn{padding:13px;border:none;border-radius:12px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:opacity .18s,transform .15s;}
+.ci-btn:active{transform:scale(0.97);}
+.ci-btn:disabled{opacity:0.55;cursor:wait;}
+.ci-btn.primary{background:var(--brand);color:#000;}
+.ci-btn.ghost{background:rgba(255,77,109,0.1);color:var(--danger);border:1px solid rgba(255,77,109,0.25);}
+
+/* Bottom CTA "Go to my models" */
+.ci-cta-bottom{margin:24px 20px 0;display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border-radius:14px;background:rgba(61,255,110,0.06);border:1px solid rgba(61,255,110,0.25);font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--brand);letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:background .18s;}
+.ci-cta-bottom:hover{background:rgba(61,255,110,0.10);}
+.ci-cta-bottom svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;}
+
+.ci-empty{padding:80px 20px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-mute);letter-spacing:0.04em;line-height:1.7;}
+.ci-empty svg{width:48px;height:48px;stroke:rgba(255,255,255,0.1);fill:none;stroke-width:1.5;display:block;margin:0 auto 14px;}
+.ci-empty b{color:#cfcfd5;}
+.err-box{padding:40px 20px;text-align:center;color:var(--text-dim);font-family:var(--font-mono);font-size:12px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <div class="sub-header">
+    <div class="back-btn" id="backBtn">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title">Collaboration Invites</div>
+    <div></div>
+  </div>
+
+  <div class="app-scroll" id="content">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;">
+      <div class="loading-ring"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor('#070707'); tg.setBackgroundColor && tg.setBackgroundColor('#070707'); }
+function getInitData(){ return (tg && tg.initData) ? tg.initData : ''; }
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  if (history.length > 1) history.back(); else location.href = 'profile.html';
+});
+
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast'), m = document.getElementById('toastMsg');
+  m.textContent = msg;
+  t.style.borderColor = err ? 'rgba(255,77,109,0.35)' : 'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background = err ? 'var(--danger)' : 'var(--brand)';
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function inviterLabel(it){
+  if(it.inviter_username) return '@'+it.inviter_username;
+  if(it.inviter_name) return it.inviter_name;
+  return 'ID '+it.inviter_id;
+}
+
+function fmtRelTime(s){
+  if(!s) return '';
+  try{
+    const d=new Date(s.replace(' ','T')+'Z');
+    const diff=(Date.now()-d.getTime())/1000;
+    if(diff<60) return 'just now';
+    if(diff<3600) return Math.floor(diff/60)+' min ago';
+    if(diff<86400) return Math.floor(diff/3600)+' h ago';
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  }catch(e){ return ''; }
+}
+
+async function loadInvites(){
+  try{
+    const r=await fetch('/api/collab/invites',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(r.status===401){
+      document.getElementById('content').innerHTML='<div class="err-box">Open from Telegram to see invites.</div>';
+      return;
+    }
+    const d=await r.json();
+    render(d.invites||[]);
+  }catch(e){
+    document.getElementById('content').innerHTML='<div class="err-box">Couldn\'t load invites.</div>';
+  }
+}
+
+function render(items){
+  const root=document.createElement('div');
+  const hero=document.createElement('div');
+  hero.innerHTML=
+    '<div class="ci-hero">'+
+      '<div style="font-family:var(--font-heavy);font-size:26px;letter-spacing:-0.03em;color:#fff;line-height:1.1">Invitations</div>'+
+      '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:8px;letter-spacing:0.04em;line-height:1.6">Other creators want to share their models with you.<br>Accept to generate videos with them.</div>'+
+    '</div>';
+  root.appendChild(hero);
+
+  const pendingCount = items.filter(i => i.status === 'pending').length;
+  const totalCount   = items.length;
+
+  if(!totalCount){
+    const empty=document.createElement('div');
+    empty.className='ci-empty';
+    empty.innerHTML=
+      '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 12H8M12 16V8"/></svg>'+
+      '<b>No invitations</b><br>'+
+      'When someone shares a model with you, it\'ll show up here.';
+    root.appendChild(empty);
+  } else {
+    const title=document.createElement('div');
+    title.className='ci-section-title';
+    title.textContent = pendingCount > 0
+      ? pendingCount+' pending · '+totalCount+' total'
+      : totalCount+' invitation'+(totalCount===1?'':'s');
+    root.appendChild(title);
+
+    items.forEach(it=>{
+      const status = it.status || 'pending';
+      const isDone = (status !== 'pending');
+      const card=document.createElement('div');
+      card.className='ci-card' + (isDone ? ' done' : '');
+      card.dataset.modelId = it.model_id;
+
+      const initial=(it.model_name && it.model_name[0]||'?').toUpperCase();
+      const avatar=it.preview_url
+        ? '<div class="ci-avatar" style="background-image:url(\''+it.preview_url+'\')"></div>'
+        : '<div class="ci-avatar placeholder">'+escapeHtml(initial)+'</div>';
+
+      let badgeHtml = '';
+      if (status === 'active') {
+        badgeHtml = '<div class="ci-status-badge accepted">✓ Accepted</div>';
+      } else if (status === 'declined') {
+        badgeHtml = '<div class="ci-status-badge declined">✕ Declined</div>';
+      }
+
+      const actionsHtml = isDone
+        ? ''
+        : '<div class="ci-actions">'+
+            '<button class="ci-btn ghost" data-act="decline" data-id="'+it.model_id+'">Decline</button>'+
+            '<button class="ci-btn primary" data-act="accept" data-id="'+it.model_id+'">Accept</button>'+
+          '</div>';
+
+      card.innerHTML=
+        '<div class="ci-row">'+
+          avatar+
+          '<div class="ci-info">'+
+            '<div class="ci-name">'+escapeHtml(it.model_name||'Model')+'</div>'+
+            '<div class="ci-meta">Invited by <b>'+escapeHtml(inviterLabel(it))+'</b><br>'+fmtRelTime(it.added_at)+'</div>'+
+            badgeHtml+
+          '</div>'+
+        '</div>'+
+        actionsHtml;
+      root.appendChild(card);
+    });
+  }
+
+  // Кнопка перехода в раздел моделей
+  const cta=document.createElement('div');
+  cta.className='ci-cta-bottom';
+  cta.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg> Go to my models';
+  cta.addEventListener('click', () => { location.href='all_videos.html?tab=models'; });
+  root.appendChild(cta);
+
+  const spacer=document.createElement('div'); spacer.style.height='24px';
+  root.appendChild(spacer);
+
+  const content=document.getElementById('content');
+  content.innerHTML='';
+  content.appendChild(root);
+  if(window.pageStagger) window.pageStagger(content);
+
+  // Делегирование кликов
+  content.querySelectorAll('.ci-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const act=btn.dataset.act, id=parseInt(btn.dataset.id,10);
+      btn.disabled=true;
+      const others=btn.parentElement.querySelectorAll('.ci-btn');
+      others.forEach(b=>b.disabled=true);
+      try{
+        const url='/api/collab/invite/'+act;
+        const r=await fetch(url,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+          body:JSON.stringify({model_id:id})
+        });
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok||!d.ok){showToast(d.error||'Failed', true); others.forEach(b=>b.disabled=false); return;}
+
+        if(act==='accept'){
+          showToast('Access granted');
+          if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+          loadInvites();   // карточка останется, теперь со статусом active
+        } else {
+          // decline — выкидываем в раздел моделей; back-стрелка там вернёт к этой модели.
+          showToast('Declined');
+          try { sessionStorage.setItem('back_to_model_id', String(id)); } catch (e) {}
+          setTimeout(() => { location.href = 'all_videos.html?tab=models'; }, 250);
+        }
+      }catch(e){
+        showToast('Network error', true);
+        others.forEach(b=>b.disabled=false);
+      }
+    });
+  });
+}
+
+window.addEventListener('pageshow', loadInvites);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadInvites();
+});
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

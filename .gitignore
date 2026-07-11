@@ -1,0 +1,15 @@
+# Backups & restore points
+*.bak
+*.bak-*
+*.orig
+*.save
+
+# Editor / OS junk
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Quarantine (kept off-repo; lives outside web root anyway)
+/aifamous-quarantine/

@@ -1,0 +1,38 @@
+/* Page reveal — staggered fade-up of top-level blocks on each page.
+   Snappy (≈360ms total), no full-page fade, no black gap on navigation.
+
+   Targets direct children of `.app-scroll` (the main scrolling container).
+   Elements off the initial viewport keep their natural position — only the
+   first ~12 children are staggered, the rest snap in. */
+
+:root{
+  --pt-step: 55ms;        /* delay between successive children */
+  --pt-dur:  420ms;       /* per-element animation duration */
+  --pt-ease: cubic-bezier(.22,.61,.36,1);
+}
+
+/* While JS hasn't run yet, hide targeted items to avoid a flash */
+html.pt-stagger-ready .pt-item{
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  will-change: opacity, transform;
+}
+
+html.pt-stagger-ready .pt-item.pt-show{
+  animation: pt-rise var(--pt-dur) var(--pt-ease) both;
+  animation-delay: calc(var(--pt-i, 0) * var(--pt-step));
+}
+
+@keyframes pt-rise{
+  from{ opacity: 0; transform: translate3d(0, 14px, 0); }
+  to  { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  html.pt-stagger-ready .pt-item,
+  html.pt-stagger-ready .pt-item.pt-show{
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}

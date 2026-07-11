@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Create Model</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<link rel="stylesheet" href="components/GenerationWidget.css">
+<style>
+/* Tighten the scroll padding on this page — default 80px leaves a big gap
+   between the Generate button and the sticky bottom-nav. */
+#formSection{padding-bottom:24px;}
+
+/* ── Preview frame ────────────────────────────────── */
+.cm-preview-wrap{
+  position:relative;aspect-ratio:4/5;border-radius:24px;overflow:hidden;
+  background:#0a0a0a;border:1.5px dashed rgba(255,255,255,0.18);
+  margin-bottom:20px;
+  transition:border-color .3s,border-style .3s;
+}
+.cm-preview-wrap.has-content{border-style:solid;border-color:rgba(61,255,110,0.4);}
+
+.cmp-stage{position:absolute;inset:0;display:flex;flex-direction:column;padding:18px 16px;box-sizing:border-box;}
+
+/* Header (model name) — larger display font, brand-accented */
+.cmp-head{text-align:center;flex-shrink:0;min-height:22px;padding-bottom:12px;}
+.cmp-name{
+  font-family:var(--font-heavy);
+  font-size:18px;
+  letter-spacing:-0.005em;
+  color:var(--brand);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.1;
+}
+.cmp-head.placeholder .cmp-name{color:var(--text-mute);}
+
+/* Body — holds top cue + grid / hero, centered. Prompt lives in .cmp-foot below. */
+.cmp-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;position:relative;gap:10px;}
+
+/* Silhouette (initial state) */
+.cmp-silhouette{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--text-mute);text-align:center;padding:20px;animation:cmpFade .3s ease;}
+.cmp-silhouette svg{width:64px;height:64px;stroke:rgba(255,255,255,0.15);fill:none;stroke-width:1.5;}
+.cmp-silhouette .pp-label{font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-mute);}
+.cmp-silhouette .pp-label.named{color:var(--brand);}
+.cmp-hint{font-size:9px;color:var(--text-mute);font-family:var(--font-mono);max-width:180px;line-height:1.5;letter-spacing:0.03em;}
+
+/* ── Prompt styles ──────────────────────────────────
+/* Large prompt (text-only mode) — boxed quote card with brand accent */
+.cmp-prompt-hero{
+  font-family:var(--font-mono);
+  font-size:12px;
+  line-height:1.6;
+  letter-spacing:0.02em;
+  color:rgba(255,255,255,0.92);
+  text-align:left;
+  max-width:86%;
+  padding:14px 16px 15px;
+  border-radius:14px;
+  background:linear-gradient(135deg, rgba(61,255,110,0.07), rgba(61,255,110,0.02));
+  border:1px solid rgba(61,255,110,0.24);
+  box-shadow:0 4px 14px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.02);
+  display:-webkit-box;
+  -webkit-line-clamp:8;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  animation:cmpFade .3s ease;
+}
+.cmp-prompt-hero::before{
+  content:'PROMPT';
+  display:block;
+  font-family:var(--font-mono);
+  font-size:8px;
+  font-weight:700;
+  color:var(--brand);
+  letter-spacing:0.18em;
+  margin-bottom:8px;
+}
+
+/* File grid — flex layout centers small tiles; count-specific widths set size.
+   Height is determined by content so sibling cues can sit above/below. */
+.cmp-grid{
+  display:flex;flex-wrap:wrap;gap:16px 14px;
+  width:100%;padding:4px 4px;box-sizing:border-box;
+  align-items:center;justify-content:center;align-content:center;
+  animation:cmpFade .3s ease;
+  flex-shrink:0;
+}
+
+/* 5-photo layout: 3 top row, 2 bottom row. Force wrap with a sentinel. */
+.cmp-grid[data-count="5"]{gap:14px 12px;}
+.cmp-grid .row-break{flex-basis:100%;height:0;margin:0;}
+
+/* OUTER GRID CELL: wraps the paper tile and the filename label. Sizing lives
+   here so the label inherits the tile's width for correct ellipsis. */
+.file-cell{
+  flex:0 0 auto;
+  width:110px;max-width:42%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+  animation:fileIn .35s cubic-bezier(.22,.61,.36,1) both;
+  animation-delay:var(--delay, 0s);
+}
+
+/* Per-count cell widths — count=4 and =5 are 2-row grids, slightly smaller
+   to keep the filename labels below each tile within the frame. */
+.cmp-grid[data-count="1"] .file-cell{width:52%;max-width:190px;}
+.cmp-grid[data-count="2"] .file-cell{width:40%;max-width:150px;}
+.cmp-grid[data-count="3"] .file-cell{width:30%;max-width:114px;}
+.cmp-grid[data-count="4"] .file-cell{width:31%;max-width:108px;}
+.cmp-grid[data-count="5"] .file-cell{width:26%;max-width:94px;}
+
+/* INNER paper wrapper — positioning context for photo + fold, casts the drop shadow. */
+.file-wrap{
+  position:relative;
+  width:100%;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,0.55));
+}
+
+/* Filename label under the tile — muted mono, auto-ellipsis for long names. */
+.file-label{
+  font-family:var(--font-mono);
+  font-size:8.5px;
+  color:rgba(255,255,255,0.45);
+  letter-spacing:0.04em;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:center;
+  line-height:1.2;
+}
+
+/* BACK LAYER: paper body (L-shape). Sized by the SVG's natural aspect so the
+   wrap gets a real pixel height for absolute children's % to resolve. */
+.file-wrap .paper{
+  display:block;
+  width:100%;
+  height:auto;
+  pointer-events:none;
+  user-select:none;
+}
+
+/* MIDDLE LAYER: polaroid photo tile. Its top-right corner enters the fold area
+   (fold flap lives at viewBox x=[65,100], y=[0,30] → display %[65,100]×[0,23.08]);
+   the .fold layer above covers that corner. */
+.file-wrap .file-icon{
+  position:absolute;
+  left:11%;
+  top:12%;
+  width:78%;
+  height:76%;
+  border-radius:10px;
+  overflow:hidden;
+  background:#111;
+  box-shadow:0 4px 12px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset;
+}
+
+.file-wrap .file-icon .thumb{
+  position:absolute;
+  left:0;top:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+/* TOP LAYER: fold flap. Same viewBox as paper body → triangle lands pixel-
+   perfect over the paper's crease zone, sitting on top of .file-icon. */
+.file-wrap .fold{
+  position:absolute;
+  left:0;top:0;
+  width:100%;
+  height:100%;
+  display:block;
+  pointer-events:none;
+  user-select:none;
+}
+
+/* Cue labels with a hand-drawn wavy arrow. Minimal: italic mono, muted white,
+   a thin squiggly SVG arrow inheriting color via currentColor. */
+.cmp-cue{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  flex-shrink:0;
+  font-family:var(--font-mono);
+  font-size:11px;
+  font-style:italic;
+  letter-spacing:0.04em;
+  color:rgba(255,255,255,0.55);
+  text-transform:lowercase;
+  white-space:nowrap;
+  animation:cmpFade .3s ease;
+}
+.cmp-arrow{
+  width:46px;
+  height:auto;
+  opacity:0.85;
+  flex-shrink:0;
+  transform:translateY(4px);
+  color:inherit;
+}
+
+/* Footer — the prompt box lives here, pinned to the bottom of the stage so it
+   doesn't crowd the grid above. Cue-bottom is the first child of .cmp-foot. */
+.cmp-foot{
+  flex-shrink:0;
+  padding-top:10px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  animation:cmpFade .3s ease;
+}
+.cmp-prompt{
+  font-family:var(--font-mono);
+  font-size:9.5px;
+  line-height:1.55;
+  letter-spacing:0.02em;
+  color:rgba(255,255,255,0.85);
+  padding:8px 12px;
+  border-radius:10px;
+  background:linear-gradient(135deg, rgba(61,255,110,0.06), rgba(61,255,110,0.015));
+  border:1px solid rgba(61,255,110,0.18);
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  text-align:left;
+}
+
+@keyframes cmpFade{from{opacity:0;}to{opacity:1;}}
+@keyframes fileIn{from{opacity:0;transform:scale(.85) translateY(6px);}to{opacity:1;transform:scale(1) translateY(0);}}
+
+/* ── Input blocks ─────────────────────────────────── */
+.input-block{
+  border-radius:20px;border:1.5px solid var(--line);
+  background:rgba(255,255,255,0.02);
+  transition:border-color .3s,background .3s,opacity .3s;
+  overflow:hidden;
+}
+.input-block.active{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.04);}
+.input-block.disabled{opacity:.45;pointer-events:none;}
+
+.block-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;}
+.block-title-wrap{display:flex;align-items:center;gap:10px;}
+.block-icon{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s;}
+.block-icon svg{width:16px;height:16px;stroke:var(--text-dim);fill:none;stroke-width:2;transition:stroke .3s;}
+.input-block.active .block-icon{background:rgba(61,255,110,0.12);}
+.input-block.active .block-icon svg{stroke:var(--brand);}
+.block-label{font-family:var(--font-heavy);font-size:15px;letter-spacing:-0.01em;color:#fff;}
+.block-sub{font-family:var(--font-mono);font-size:9px;color:var(--text-mute);letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;}
+
+/* toggle switch */
+.tog{position:relative;width:44px;height:26px;flex-shrink:0;cursor:pointer;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-track{position:absolute;inset:0;border-radius:13px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.12);transition:background .25s,border-color .25s;}
+.tog input:checked ~ .tog-track{background:var(--brand);border-color:var(--brand);}
+.tog-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .25s,box-shadow .25s;box-shadow:0 1px 4px rgba(0,0,0,0.4);}
+.tog input:checked ~ .tog-thumb{transform:translateX(18px);box-shadow:0 0 8px rgba(61,255,110,0.5);}
+
+.block-body{padding:0 16px 16px;}
+
+/* ── Reference grid ───────────────────────────────── */
+.ref-count-row{display:flex;justify-content:flex-end;margin-bottom:10px;}
+.ref-count{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.06em;}
+.ref-count strong{color:var(--brand);}
+.ref-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.ref-slot{aspect-ratio:1/1;border-radius:14px;background:rgba(255,255,255,0.03);border:1.5px dashed rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;color:var(--text-mute);transition:border-color .2s,color .2s;}
+.ref-slot:hover{border-color:var(--brand);color:var(--brand);}
+.ref-slot.has-img{border-style:solid;border-color:var(--line-2);}
+.ref-slot img{width:100%;height:100%;object-fit:cover;}
+.ref-slot .plus{font-size:24px;font-weight:200;}
+.ref-slot .remove{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;display:none;align-items:center;justify-content:center;font-size:11px;border:none;cursor:pointer;z-index:2;}
+.ref-slot.has-img .remove{display:flex;}
+/* re-enable pointer events inside block body even when block is toggled off */
+.input-block.disabled .block-header{pointer-events:auto;}
+
+/* ── Connector ────────────────────────────────────── */
+.connector{display:flex;align-items:center;gap:10px;height:40px;margin:10px 0;}
+.conn-line-left,.conn-line-right{
+  flex:1;height:1px;background:var(--line);min-width:0;
+  transition:opacity .38s cubic-bezier(.4,0,.2,1),background .3s;
+}
+.conn-line-left.retracted,.conn-line-right.retracted{opacity:0;}
+.connector.both-active .conn-line-left,
+.connector.both-active .conn-line-right{background:rgba(61,255,110,0.4);}
+.conn-center{flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.conn-badge{
+  font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.1em;
+  padding:5px 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.15);
+  color:var(--text-mute);background:transparent;white-space:nowrap;flex-shrink:0;
+  transition:color .3s,background .3s,border-color .3s,box-shadow .3s;
+}
+.connector.both-active .conn-badge{
+  color:#000;background:var(--brand);border-color:var(--brand);
+  box-shadow:0 0 16px rgba(61,255,110,0.4);
+}
+.best-tag{
+  font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.08em;
+  color:var(--brand);background:rgba(61,255,110,0.1);border:1px solid rgba(61,255,110,0.25);
+  padding:6px 12px;border-radius:999px;white-space:nowrap;
+  opacity:0;max-width:0;overflow:hidden;padding-left:0;padding-right:0;border-width:0;
+  transition:opacity .3s,max-width .38s cubic-bezier(.4,0,.2,1),padding .3s,border-width .3s;
+}
+.connector.both-active .best-tag{
+  opacity:1;max-width:200px;padding:6px 12px;border-width:1px;
+}
+
+/* ── Name input ───────────────────────────────────── */
+.name-input{
+  width:100%;padding:0 18px;border-radius:999px;box-sizing:border-box;
+  background:rgba(255,255,255,0.03);border:1.5px solid var(--line-2);
+  color:#fff;font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.04em;
+  outline:none;text-transform:uppercase;height:48px;margin-top:20px;
+}
+.name-input:focus{border-color:var(--brand);}
+.name-input::placeholder{color:var(--text-mute);text-transform:none;}
+
+.status-msg{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);min-height:16px;padding:8px 0 0;}
+
+/* ── Cost card (same as create_video.html) ──────── */
+.cost-card{margin:16px 0 0;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(61,255,110,0.08),rgba(61,255,110,0.02));border:1px solid rgba(61,255,110,0.2);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
+.cost-card .c-left{display:flex;align-items:center;gap:10px;}
+.cost-card .c-icon{width:32px;height:32px;border-radius:10px;background:rgba(61,255,110,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--brand);}
+.cost-card .c-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+.cost-card .c-text .c-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;}
+.cost-card .c-text .c-val{font-family:var(--font-heavy);font-size:18px;color:#fff;letter-spacing:-0.02em;margin-top:2px;}
+.cost-card .c-text .c-val .unit{font-family:var(--font-mono);font-size:10px;color:var(--brand);margin-left:4px;font-weight:500;}
+.cost-card .c-text .c-sub{font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:0.04em;}
+.cost-card .c-eta{text-align:right;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.04em;}
+.cost-card .c-eta strong{color:#fff;font-weight:700;display:block;font-size:12px;}
+.cost-card.no-funds{background:linear-gradient(135deg,rgba(255,77,109,0.12),rgba(255,77,109,0.03));border-color:rgba(255,77,109,0.4);}
+.cost-card.no-funds .c-icon{background:rgba(255,77,109,0.18);color:var(--danger);}
+.cost-card.no-funds .c-text .c-val,
+.cost-card.no-funds .c-text .c-val .unit,
+.cost-card.no-funds .c-eta strong{color:var(--danger);}
+.cost-card .c-hint{display:none;margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--danger);letter-spacing:0.02em;line-height:1.4;}
+.cost-card.no-funds .c-hint{display:block;}
+.generate-big.no-funds{
+  background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
+  color:var(--text-mute);box-shadow:none;cursor:not-allowed;
+  border:1px solid var(--line);
+}
+.generate-big.no-funds:hover{transform:none;box-shadow:none;}
+.generate-big.no-funds svg path{fill:var(--text-mute);}
+.generate-big.no-funds::before{display:none;}
+@keyframes demoBtnPress{
+  /* instant squish — finger lands */
+  0%   {transform:scale(1);             box-shadow:0 12px 40px -10px rgba(61,255,110,0.6);  filter:brightness(1);}
+  5%   {transform:scaleX(1.07) scaleY(0.76); box-shadow:0 1px 0 0 rgba(61,255,110,1),0 0 0 10px rgba(61,255,110,0.65),0 0 55px rgba(61,255,110,0.55); filter:brightness(1.9);}
+  /* shockwave ring blasts outward */
+  14%  {transform:scaleX(1.04) scaleY(0.82); box-shadow:0 0 0 22px rgba(61,255,110,0.28),0 0 90px rgba(61,255,110,0.4);  filter:brightness(1.35);}
+  26%  {transform:scale(1.03);          box-shadow:0 0 0 38px rgba(61,255,110,0.08),0 0 130px rgba(61,255,110,0.22); filter:brightness(1.12);}
+  /* slight bounce above baseline */
+  38%  {transform:scale(1.005);         box-shadow:0 0 0 16px rgba(61,255,110,0.18),0 0 70px rgba(61,255,110,0.28); filter:brightness(1.05);}
+  /* settle into held-down state */
+  52%  {transform:scale(0.94);          box-shadow:0 0 0 8px rgba(61,255,110,0.5), 0 0 45px rgba(61,255,110,0.32); filter:brightness(1);}
+  68%  {transform:scale(0.96);          box-shadow:0 0 0 5px rgba(61,255,110,0.45),0 0 35px rgba(61,255,110,0.28);}
+  84%  {transform:scale(0.945);         box-shadow:0 0 0 4px rgba(61,255,110,0.42),0 0 28px rgba(61,255,110,0.24);}
+  100% {transform:scale(0.95);          box-shadow:0 0 0 3px rgba(61,255,110,0.38),0 0 22px rgba(61,255,110,0.2);}
+}
+.generate-big.demo-pressed{
+  animation:demoBtnPress 3.375s cubic-bezier(.22,.61,.36,1) forwards;
+  pointer-events:none;
+}
+/* demo mode: taller preview so 4-file grid + prompt don't overlap */
+body.demo-mode .cm-preview-wrap{aspect-ratio:unset;min-height:570px;}
+/* demo mode: disable internal app-scroll so all content renders in one tall
+   column — the parent scrolls the iframe via CSS translateY instead */
+body.demo-mode .app{height:auto;overflow:visible;}
+body.demo-mode .app-scroll{overflow-y:visible;flex:none;height:auto;}
+body.demo-mode .bottom-nav{display:none;}
+/* Demo: generate button — initially gray/inactive */
+body.demo-mode #generateBtn.demo-inactive{
+  background:rgba(255,255,255,0.07)!important;
+  color:rgba(255,255,255,0.28)!important;
+  box-shadow:none!important;
+  pointer-events:none;
+  border:1.5px solid rgba(255,255,255,0.12)!important;
+}
+body.demo-mode #generateBtn.demo-inactive::before{display:none;}
+/* Demo: button activates with a glow burst */
+body.demo-mode #generateBtn.demo-active{
+  transition:background .4s ease,box-shadow .4s ease,color .4s ease!important;
+  animation:demoBtnActivate 0.55s cubic-bezier(.22,.61,.36,1) forwards;
+}
+@keyframes demoBtnActivate{
+  0%  {box-shadow:0 0 0 rgba(61,255,110,0);}
+  40% {box-shadow:0 0 0 20px rgba(61,255,110,0.22),0 0 60px rgba(61,255,110,0.5);}
+  100%{box-shadow:0 12px 40px -10px rgba(61,255,110,0.6);}
+}
+/* Demo: inputs in typing state — green border + caret */
+.demo-typing-active{
+  border-color:var(--brand)!important;
+  caret-color:var(--brand)!important;
+  background:rgba(61,255,110,0.03)!important;
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" onclick="history.back()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title" id="pageTitle">Create Model</div>
+    <div class="sub-step" id="stepLabel">STEP 1/2</div>
+  </div>
+
+  <!-- Form -->
+  <div class="app-scroll" id="formSection">
+    <div style="padding:20px">
+
+      <!-- Preview -->
+      <div class="cm-preview-wrap" id="cmPreview">
+        <div class="cmp-stage" id="cmpStage"></div>
+      </div>
+
+      <!-- ── PHOTOS BLOCK ── -->
+      <div class="input-block active" id="photosBlock">
+        <div class="block-header">
+          <div class="block-title-wrap">
+            <div class="block-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div>
+              <div class="block-label">Photos</div>
+              <div class="block-sub">Face reference · up to 5</div>
+            </div>
+          </div>
+          <label class="tog" onclick="toggleBlock('photos')">
+            <input type="checkbox" id="togPhotos" checked>
+            <div class="tog-track"></div>
+            <div class="tog-thumb"></div>
+          </label>
+        </div>
+        <div class="block-body" id="photosBody">
+          <div class="ref-count-row">
+            <div class="ref-count"><strong id="refCount">0</strong>/5 uploaded</div>
+          </div>
+          <div class="ref-grid" id="refGrid">
+            <div class="ref-slot" data-slot="0" onclick="pickRef(0)"><div class="plus">+</div><button class="remove" onclick="removeRef(event,0)">×</button></div>
+            <div class="ref-slot" data-slot="1" onclick="pickRef(1)"><div class="plus">+</div><button class="remove" onclick="removeRef(event,1)">×</button></div>
+            <div class="ref-slot" data-slot="2" onclick="pickRef(2)"><div class="plus">+</div><button class="remove" onclick="removeRef(event,2)">×</button></div>
+            <div class="ref-slot" data-slot="3" onclick="pickRef(3)"><div class="plus">+</div><button class="remove" onclick="removeRef(event,3)">×</button></div>
+            <div class="ref-slot" data-slot="4" onclick="pickRef(4)"><div class="plus">+</div><button class="remove" onclick="removeRef(event,4)">×</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CONNECTOR ── -->
+      <div class="connector both-active" id="connector">
+        <div class="conn-line-left" id="lineLeft"></div>
+        <div class="conn-center">
+          <div class="best-tag" id="bestTag">✨ BEST SETUP</div>
+          <div class="conn-badge" id="connBadge">AND</div>
+        </div>
+        <div class="conn-line-right" id="lineRight"></div>
+      </div>
+
+      <!-- ── PROMPT BLOCK ── -->
+      <div class="input-block active" id="promptBlock">
+        <div class="block-header">
+          <div class="block-title-wrap">
+            <div class="block-icon">
+              <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <div>
+              <div class="block-label">Prompt</div>
+              <div class="block-sub">Style · vibe · setting</div>
+            </div>
+          </div>
+          <label class="tog" onclick="toggleBlock('prompt')">
+            <input type="checkbox" id="togPrompt" checked>
+            <div class="tog-track"></div>
+            <div class="tog-thumb"></div>
+          </label>
+        </div>
+        <div class="block-body" id="promptBody">
+          <textarea class="prompt-box" id="promptBox" style="margin:0"></textarea>
+          <div class="prompt-chips" id="appearanceChips" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Name + Generate -->
+      <input type="text" class="name-input" id="nameInput" placeholder="model name • e.g. aurora">
+      <div class="cost-card" id="modelCostCard" onclick="location.href='subscription.html'">
+        <div class="c-left">
+          <div class="c-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 10h8M8 14h8M10 7v10M14 7v10"/></svg></div>
+          <div class="c-text">
+            <div class="c-lbl">Cost</div>
+            <div class="c-val"><span id="modelCostVal">5</span><span class="unit">tokens</span></div>
+            <div class="c-sub" id="modelBalanceVal">Balance: —</div>
+            <div class="c-hint" id="modelCostHint">Not enough tokens — tap to top up</div>
+          </div>
+        </div>
+        <div class="c-eta"><strong>~30 sec</strong>ETA</div>
+      </div>
+      <button class="generate-big" id="generateBtn" onclick="generate()">
+        <svg viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z" fill="#001b08"/></svg>
+        Generate model
+      </button>
+      <div class="status-msg" id="statusMsg"></div>
+
+      <!-- Hidden file inputs -->
+      <input type="file" id="fileInput0" accept="image/*" multiple style="display:none" onchange="handleFiles(this)">
+      <input type="file" id="fileInput1" accept="image/*" multiple style="display:none" onchange="handleFiles(this)">
+      <input type="file" id="fileInput2" accept="image/*" multiple style="display:none" onchange="handleFiles(this)">
+      <input type="file" id="fileInput3" accept="image/*" multiple style="display:none" onchange="handleFiles(this)">
+      <input type="file" id="fileInput4" accept="image/*" multiple style="display:none" onchange="handleFiles(this)">
+    </div>
+  </div>
+
+  <!-- Generation progress -->
+  <div class="app-scroll" id="genSection" style="display:none">
+    <div class="gen-wrap">
+      <div class="gen-frame" id="genFrame">
+        <div class="gen-wave-dots"><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div><div class="wd"></div></div>
+        <img id="genPreviewImg" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover" src="" alt="">
+        <div class="gen-overlay-text">
+          <div class="g-stage" id="genStage">INITIALIZING</div>
+          <div id="genSub">Warming up...</div>
+        </div>
+      </div>
+
+      <div class="gen-header">
+        <div class="g-name" id="genName">New Model</div>
+        <div class="g-elapsed" id="genTimer">00:00</div>
+      </div>
+
+      <div class="gen-bar-wrap"><div class="gen-bar-fill" id="genBarFill" style="width:0%"></div></div>
+      <div class="gen-bar-meta">
+        <span class="g-pct"><span id="genPct">0</span>%</span>
+        <span id="genEta">ETA ~30 sec</span>
+      </div>
+
+      <div class="stepper" id="genStepper"></div>
+
+      <div class="gen-tip-card">
+        <div class="tip-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20 9l-5.5 4 1.5 7L12 17l-4 3 1.5-7L4 9l5.91-.74z" fill="currentColor" stroke="none"/></svg></div>
+        <div class="tip-content">
+          <div class="t-lbl">Pro tip</div>
+          <div class="t-txt" id="genTip">Models with 5+ reference photos hit 92% likeness score.</div>
+        </div>
+      </div>
+
+      <div class="gen-actions" id="genActions">
+        <button class="btn-ghost" onclick="minimizeGen()">Run in background</button>
+        <button class="btn-danger" id="stopBtn" onclick="stopGeneration()">Cancel</button>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn active" onclick="void(0)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+<div class="confetti" id="confetti"></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+let refs=[null,null,null,null,null];
+let photosEnabled=true, promptEnabled=true;
+
+function toggleBlock(type){
+  // read checkbox state AFTER the click event flips it
+  setTimeout(()=>{
+    if(type==='photos'){
+      photosEnabled=document.getElementById('togPhotos').checked;
+      const block=document.getElementById('photosBlock');
+      block.classList.toggle('active', photosEnabled);
+      block.classList.toggle('disabled', !photosEnabled);
+    } else {
+      promptEnabled=document.getElementById('togPrompt').checked;
+      const block=document.getElementById('promptBlock');
+      block.classList.toggle('active', promptEnabled);
+      block.classList.toggle('disabled', !promptEnabled);
+    }
+    updateConnector();
+    // Refresh the preview so the cue/prompt-box reflects the new toggle state.
+    renderPreview();
+  }, 0);
+}
+
+function updateConnector(){
+  const conn=document.getElementById('connector');
+  const badge=document.getElementById('connBadge');
+  const both=photosEnabled&&promptEnabled;
+  const neither=!photosEnabled&&!promptEnabled;
+
+  conn.classList.toggle('both-active', both);
+  document.getElementById('lineLeft').classList.toggle('retracted', !photosEnabled);
+  document.getElementById('lineRight').classList.toggle('retracted', !promptEnabled);
+  badge.textContent = both ? 'AND' : neither ? 'PICK MODE(S)' : 'OR';
+}
+
+function pickRef(i){
+  if(!refs.filter(r=>r===null).length){ showToast('All 5 slots are filled',true); return; }
+  document.getElementById('fileInput'+i).click();
+}
+
+
+function refUrl(file){
+  if(!file) return '';
+  if(!file._famousUrl) file._famousUrl=URL.createObjectURL(file);
+  return file._famousUrl;
+}
+
+function handleFiles(input){
+  const files=Array.from(input.files||[]); if(!files.length) return;
+  const free=refs.filter(r=>r===null).length;
+  const toAdd=files.slice(0,free);
+  if(files.length>free) showToast(`Only ${free} slot${free!==1?'s':''} free — added first ${toAdd.length}, rest ignored`,true);
+  for(const file of toAdd){
+    const slot=refs.findIndex(r=>r===null);
+    if(slot===-1) break;
+    refs[slot]=file;
+    const url=refUrl(file);
+    const el=document.querySelector(`.ref-slot[data-slot="${slot}"]`);
+    el.classList.add('has-img');
+    el.innerHTML=`<img src="${url}" alt=""><button class="remove" onclick="removeRef(event,${slot})">×</button>`;
+  }
+  updateRefCount();
+  renderPreview();
+  input.value='';
+}
+
+function removeRef(e,i){
+  e.stopPropagation();
+  const f=refs[i];
+  if(f && f._famousUrl){ try{URL.revokeObjectURL(f._famousUrl);}catch(_){} }
+  refs[i]=null;
+  const slot=document.querySelector(`.ref-slot[data-slot="${i}"]`);
+  slot.classList.remove('has-img');
+  slot.innerHTML=`<div class="plus">+</div><button class="remove" onclick="removeRef(event,${i})">×</button>`;
+  document.getElementById('fileInput'+i).value='';
+  updateRefCount();
+  renderPreview();
+}
+
+// Legacy hooks (toggleBlock still calls these) — both delegate to renderPreview.
+function restorePreview(){ renderPreview(); }
+function resetPreview(){ renderPreview(); }
+
+function updateRefCount(){
+  document.getElementById('refCount').textContent=refs.filter(Boolean).length;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Short filename for tile labels: keep a few leading chars + ellipsis + extension.
+// E.g. "IMG_20240601_portrait_beach.jpg" → "IMG_2….jpg"
+function truncFileName(name){
+  if(!name) return '';
+  if(name.length<=12) return name;
+  const dot=name.lastIndexOf('.');
+  const ext=(dot>0 && name.length-dot<=6) ? name.slice(dot) : '';
+  const base=ext ? name.slice(0, dot) : name;
+  if(base.length<=6) return name;
+  return base.slice(0, 5) + '…' + ext;
+}
+
+/* ── Adaptive preview renderer ──────────────────────────
+   Modes:
+   - Empty:       silhouette + "Your AI Model" (or entered name)
+   - Photos only: name header + file-grid (1–5 adaptive layouts)
+   - Text only:   name header + large prompt as hero
+   - Mixed:       name header + file-grid + prompt at bottom
+*/
+function renderPreview(){
+  const nameEl   = document.getElementById('nameInput');
+  const promptEl = document.getElementById('promptBox');
+  const name       = (nameEl ? nameEl.value : '').trim();
+  const photoList  = photosEnabled ? refs.filter(Boolean) : [];
+  const promptText = promptEnabled ? ((promptEl ? promptEl.value : '')||'').trim() : '';
+  const hasPhotos  = photoList.length>0;
+  const hasPrompt  = promptText.length>0;
+
+  const wrap  = document.getElementById('cmPreview');
+  const stage = document.getElementById('cmpStage');
+  if(!wrap || !stage) return;
+
+  wrap.classList.toggle('has-content', hasPhotos || hasPrompt);
+
+  // Initial / empty state: silhouette only. Name is shown ONLY if the user
+  // actually typed one — no placeholder text when the field is empty.
+  if(!hasPhotos && !hasPrompt){
+    stage.innerHTML = `
+      <div class="cmp-body">
+        <div class="cmp-silhouette">
+          <svg viewBox="0 0 64 72"><ellipse cx="32" cy="24" rx="16" ry="20"/><path d="M4 68C4 52 14 44 32 44S60 52 60 68"/></svg>
+          ${name ? `<div class="pp-label named">${escapeHtml(name)}</div>` : ''}
+          <div class="cmp-hint">Use photos, a prompt, or both to shape your model.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Header with the model name — omitted entirely if the field is empty.
+  const headerHtml = name
+    ? `<div class="cmp-head"><div class="cmp-name">${escapeHtml(name)}</div></div>`
+    : '';
+
+  // Inline hand-drawn wavy arrow — two gentle peaks then a dive to the tip.
+  const arrowSVG = `<svg class="cmp-arrow" viewBox="0 0 90 42" fill="none" `
+    + `stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">`
+    + `<path d="M 4 10 C 14 6, 24 18, 36 12 S 56 8, 70 34"/>`
+    + `<path d="M 62 28 L 70 34 L 66 24"/>`
+    + `</svg>`;
+
+  let bodyHtml, footHtml = '';
+  if(hasPhotos){
+    const n = photoList.length;
+    // 4 → 2×2 (break after 2), 5 → 3 on top / 2 on bottom (break after 3).
+    const breakAfter = n===4 ? 2 : n===5 ? 3 : -1;
+    const files = photoList.map((f,i)=>{
+      const label = escapeHtml(truncFileName(f && f.name ? f.name : 'photo.jpg'));
+      const tile = `<div class="file-cell" style="--delay:${(i*0.04).toFixed(2)}s">`
+        + `<div class="file-wrap">`
+        +   `<img class="paper" src="assets/paper_body.svg" alt="">`
+        +   `<div class="file-icon"><img class="thumb" src="${refUrl(f)}" alt=""></div>`
+        +   `<img class="fold" src="assets/paper_fold.svg" alt="">`
+        + `</div>`
+        + `<div class="file-label" title="${escapeHtml(f&&f.name?f.name:'')}">${label}</div>`
+        + `</div>`;
+      const br = (i+1===breakAfter) ? '<div class="row-break"></div>' : '';
+      return tile + br;
+    }).join('');
+
+    const topCueText = n === 1 ? 'using this photo' : 'combining these photos';
+    const cueTop = `<div class="cmp-cue"><span>${topCueText}</span>${arrowSVG}</div>`;
+
+    bodyHtml = `<div class="cmp-body">`
+      + cueTop
+      + `<div class="cmp-grid" data-count="${n}">${files}</div>`
+      + `</div>`;
+
+    if(hasPrompt){
+      footHtml = `<div class="cmp-foot">`
+        + `<div class="cmp-cue"><span>based on this prompt</span>${arrowSVG}</div>`
+        + `<div class="cmp-prompt">${escapeHtml(promptText)}</div>`
+        + `</div>`;
+    }
+  } else {
+    // Text-only: just the hero card (which already has its own "PROMPT" label).
+    bodyHtml = `<div class="cmp-body"><div class="cmp-prompt-hero">${escapeHtml(promptText)}</div></div>`;
+  }
+
+  stage.innerHTML = headerHtml + bodyHtml + footHtml;
+}
+
+const APPEARANCE_CHIPS=[
+  'shy','natural beauty','blue eyes','green eyes','brown eyes',
+  'short hair','long hair','curly hair','blonde hair','dark hair',
+  'freckles','high cheekbones','full lips','slim','athletic build',
+  'pale skin','tan skin','sharp jawline','button nose','expressive eyes',
+];
+
+function renderAppearanceChips(){
+  const pool=[...APPEARANCE_CHIPS].sort(()=>Math.random()-0.5).slice(0,4);
+  const el=document.getElementById('appearanceChips');
+  el.innerHTML=pool.map(t=>`<div class="prompt-chip" onclick="addChip('${t}')">${t}</div>`).join('');
+}
+
+function addChip(text){
+  const el=document.getElementById('promptBox');
+  el.value=el.value?el.value.replace(/,?\s*$/,'')+', '+text:text;el.focus();
+  renderPreview();
+}
+
+/* ── Stages ──────────────────────────────────────── */
+const STAGES=[
+  {id:'INITIALIZING',     icon:'⚡',label:'INIT',      desc:'Initializing',  detail:'Preparing system'},
+  {id:'UPLOADING PHOTOS', icon:'⬆', label:'UPLOAD',    desc:'Uploading',     detail:'Sending photos to server'},
+  {id:'GENERATING IMAGE', icon:'🎨',label:'GENERATING',desc:'Generating',    detail:'Creating AI model image'},
+  {id:'GENERATING BIO',   icon:'✍', label:'BIO',       desc:'Writing bio',   detail:'Composing character bio'},
+  {id:'SAVING MODEL',     icon:'💾',label:'SAVING',    desc:'Saving',        detail:'Writing to database'},
+  {id:'FINALIZING',       icon:'✅',label:'DONE',      desc:'Done',          detail:'Model ready!'},
+];
+const TIPS=['Models with 5+ photos hit 92% likeness.','Use photos with different angles for best results.','Clean backgrounds improve creation accuracy.','Your model will be ready in ~30 seconds.'];
+
+let _pollInterval=null, _timerInterval=null, _genStartTime=0, _activeGenId=null, _maxPct=0, _lastStage=null;
+
+function showGenSection(){
+  document.getElementById('formSection').style.display='none';
+  document.getElementById('genSection').style.display='block';
+  document.getElementById('pageTitle').textContent='Creating model';
+  document.getElementById('stepLabel').textContent='';
+}
+
+function setGenPct(pct){
+  _maxPct=Math.max(_maxPct,Math.max(0,Math.min(100,pct)));
+  document.getElementById('genBarFill').style.width=_maxPct+'%';
+  document.getElementById('genPct').textContent=_maxPct;
+}
+
+function renderStepper(currentStage,status){
+  const curIdx=STAGES.findIndex(s=>s.id===currentStage);
+  document.getElementById('genStepper').innerHTML=STAGES.map((s,i)=>{
+    let cls='';
+    if(status==='error'&&i<=curIdx) cls='error';
+    else if(status==='success'||i<curIdx) cls='done';
+    else if(i===curIdx) cls='active';
+    return `<div class="step${cls?' '+cls:''}"><div class="s-box">${cls==='done'?'✓':s.icon}</div><div class="s-lbl">${s.label}</div></div>`;
+  }).join('');
+  const st=STAGES[Math.max(0,curIdx)];
+  if(status==='success'){document.getElementById('genStage').textContent='DONE';document.getElementById('genSub').textContent='Model ready!';}
+  else if(status==='error'){document.getElementById('genStage').textContent='ERROR';document.getElementById('genSub').textContent='Creation failed';document.getElementById('genStage').style.color='var(--danger)';}
+  else{document.getElementById('genStage').textContent=st.desc.toUpperCase();document.getElementById('genSub').textContent=st.detail;}
+}
+
+function startTimer(){
+  _genStartTime=Date.now();_maxPct=0;_lastStage=null;
+  clearInterval(_timerInterval);
+  _timerInterval=setInterval(()=>{
+    const el=Math.floor((Date.now()-_genStartTime)/1000);
+    const m=Math.floor(el/60),s=(el%60).toString().padStart(2,'0');
+    const tEl=document.getElementById('genTimer');if(tEl)tEl.textContent=`${m.toString().padStart(2,'0')}:${s}`;
+    const tipEl=document.getElementById('genTip');if(tipEl&&el%6===0)tipEl.textContent=TIPS[Math.floor(el/6)%TIPS.length];
+  },1000);
+}
+
+function startPolling(genId){
+  _activeGenId=genId;
+  clearInterval(_pollInterval);
+  _pollInterval=setInterval(async()=>{
+    try{
+      const res=await fetch('/api/generation/'+genId+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}});
+      if(!res.ok) return;
+      const d=await res.json();
+      const stage=d.current_stage||'INITIALIZING',pct=d.stage_progress||0;
+      if(stage!==_lastStage){_lastStage=stage;}
+      setGenPct(pct);renderStepper(stage,d.status);
+
+      if(d.status==='success'){
+        clearInterval(_pollInterval);clearInterval(_timerInterval);
+        if(window.famousClearActiveGen) window.famousClearActiveGen();
+        _activeGenId=null;
+        setGenPct(100);renderStepper('DONE','success');
+        document.getElementById('genFrame').classList.add('done');
+        document.querySelectorAll('.gen-wave-dots .wd').forEach(w=>w.style.display='none');
+        if(d.preview_url){
+          const img=document.getElementById('genPreviewImg');
+          img.src=d.preview_url;
+          img.style.display='block';
+        }
+        // Signal main.html to refetch the models list whenever the user returns.
+        // Also force the top-left back arrow to do a hard navigation so bfcache
+        // can't hand back a stale carousel.
+        try{ sessionStorage.setItem('famous_models_dirty','1'); }catch(e){}
+        const backBtn=document.querySelector('.back-btn');
+        if(backBtn) backBtn.onclick=()=>location.replace('main.html');
+        // Сохраняем только что созданную модель в sessionStorage —
+        // create_video.html подхватит её и выберет автоматически.
+        try{
+          if(d.model_id){
+            sessionStorage.setItem('selectedModelId', String(d.model_id));
+            if(d.model_name) sessionStorage.setItem('selectedModelName', d.model_name);
+            if(d.preview_url) sessionStorage.setItem('selectedModelPreview', d.preview_url);
+          }
+        }catch(e){}
+        fireConfetti();
+        document.getElementById('genActions').innerHTML=`
+          <button class="btn-ghost" onclick="location.replace('all_videos.html?tab=models')">View models</button>
+          <button class="btn-ghost" onclick="location.replace('create_video.html')">Create video</button>`;
+        showToast('✨ Model ready!');
+        if(tg&&tg.HapticFeedback)tg.HapticFeedback.notificationOccurred('success');
+
+      } else if(d.status==='error'||d.status==='cancelled'){
+        clearInterval(_pollInterval);clearInterval(_timerInterval);
+        if(window.famousClearActiveGen) window.famousClearActiveGen();
+        _activeGenId=null;
+        renderStepper(stage,'error');
+        document.getElementById('genFrame').classList.add('error');
+        document.getElementById('genActions').innerHTML=`
+          <button class="btn-ghost" onclick="location.reload()">Try again</button>
+          <button class="btn-ghost" onclick="location.href='main.html'">Home</button>`;
+      }
+    }catch(e){}
+  },4000);
+}
+
+async function generate(){
+  if(document.body.classList.contains('demo-mode')) return;
+  const name=document.getElementById('nameInput').value.trim();
+  const validRefs=photosEnabled ? refs.filter(Boolean) : [];
+  const prompt=document.getElementById('promptBox').value.trim();
+  if(!name){showToast('Please enter a model name',true);return;}
+  if(!photosEnabled&&!promptEnabled){showToast('Enable at least one input',true);return;}
+  if(photosEnabled&&!validRefs.length){showToast('Add at least 1 photo',true);return;}
+  if(promptEnabled&&!prompt){showToast('Enter a prompt or disable it',true);return;}
+
+  document.getElementById('generateBtn').disabled=true;
+  document.getElementById('statusMsg').textContent='';
+  document.getElementById('genName').textContent=name.toUpperCase();
+
+  showGenSection(); startTimer();
+  setGenPct(5); renderStepper('INITIALIZING',null);
+
+  // Upload photos
+  const uploadedPaths=[];
+  setGenPct(10); renderStepper('UPLOADING',null);
+  for(let i=0;i<validRefs.length;i++){
+    try{
+      const fd=new FormData(); fd.append('file',validRefs[i]);
+      const res=await fetch('/api/upload',{method:'POST',body:fd,headers:{'X-Telegram-Init-Data':getInitData()}});
+      const d=await res.json(); if(d.path) uploadedPaths.push(d.path);
+      setGenPct(10+Math.round((i+1)/validRefs.length*15));
+    }catch(e){}
+  }
+
+  setGenPct(26); renderStepper('GENERATING IMAGE',null);
+
+  try{
+    const startRes=await fetch('/api/model/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({name:name,prompt:promptEnabled?prompt:'',photo_paths:uploadedPaths})
+    });
+    if(startRes.status===402||startRes.status===403){
+      const err=await startRes.json().catch(()=>({}));
+      clearInterval(_timerInterval);
+      document.getElementById('genFrame').classList.add('error');
+      document.getElementById('genStage')&&(document.getElementById('genStage').textContent='NO TOKENS');
+      document.getElementById('genSub')&&(document.getElementById('genSub').textContent=err.error||'Upgrade your plan');
+      document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.href=\'subscription.html\'">Open plans</button><button class="btn-ghost" onclick="location.reload()">Back</button>';
+      return;
+    }
+    const startData=await startRes.json();
+    if(startData.gen_id) startPolling(startData.gen_id);
+    else throw new Error('no gen_id');
+  }catch(e){
+    clearInterval(_timerInterval);
+    document.getElementById('genFrame').classList.add('error');
+    renderStepper('INITIALIZING','error');
+    document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.reload()">Try again</button><button class="btn-ghost" onclick="location.href=\'main.html\'">Home</button>';
+  }
+}
+
+async function stopGeneration(){
+  if(!_activeGenId) return;
+  const btn=document.getElementById('stopBtn'); if(btn){btn.disabled=true;btn.textContent='Stopping...';}
+  try{await fetch('/api/generation/'+_activeGenId+'/cancel',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}});}catch(e){}
+  clearInterval(_pollInterval);clearInterval(_timerInterval);_activeGenId=null;
+  document.getElementById('genFrame').classList.add('error');
+  renderStepper('INITIALIZING','cancelled');
+  document.getElementById('genActions').innerHTML='<button class="btn-ghost" onclick="location.reload()">Try again</button><button class="btn-ghost" onclick="location.href=\'main.html\'">Home</button>';
+}
+
+function minimizeGen(){
+  if(window.famousSetActiveGen && _activeGenId){
+    window.famousSetActiveGen({
+      gen_id: _activeGenId,
+      type: 'model',
+      type_label: 'Model',
+      model_name: document.getElementById('genName').textContent,
+      model_preview_url: '',
+      start_time: _genStartTime,
+    });
+  }
+  showToast('Running in background');
+  // В разделе моделей сразу видно баннер активной генерации
+  setTimeout(()=>location.href='all_videos.html?tab=models',400);
+}
+
+// Восстанавливаем экран прогресса если вернулись из background
+window.addEventListener('load', async function restoreGen(){
+  try{
+    const saved=JSON.parse(sessionStorage.getItem('famous_active_gen')||'null');
+    if(!saved||saved.type!=='model'||!saved.gen_id) return;
+    _activeGenId=saved.gen_id;
+    document.getElementById('genName').textContent=saved.model_name||'Model';
+    showGenSection();
+
+    // Восстанавливаем таймер из сохранённого старта (без сброса)
+    _genStartTime=saved.start_time||Date.now();
+    _maxPct=0; _lastStage=null;
+    clearInterval(_timerInterval);
+    _timerInterval=setInterval(()=>{
+      const el=Math.floor((Date.now()-_genStartTime)/1000);
+      const m=Math.floor(el/60),s=(el%60).toString().padStart(2,'0');
+      const tEl=document.getElementById('genTimer'); if(tEl) tEl.textContent=`${m.toString().padStart(2,'0')}:${s}`;
+      const tipEl=document.getElementById('genTip');if(tipEl&&el%6===0)tipEl.textContent=TIPS[Math.floor(el/6)%TIPS.length];
+    },1000);
+
+    // Сразу подгружаем актуальный прогресс с сервера, чтобы не показывать 0%
+    try{
+      const r=await fetch('/api/generation/'+saved.gen_id+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}});
+      if(r.ok){
+        const d=await r.json();
+        const stage=d.current_stage||'INITIALIZING';
+        const pct=Number(d.stage_progress||0);
+        setGenPct(pct);
+        renderStepper(stage,d.status);
+      } else {
+        renderStepper('INITIALIZING',null);
+      }
+    }catch(e){
+      renderStepper('INITIALIZING',null);
+    }
+    startPolling(saved.gen_id);
+  }catch(e){}
+});
+
+// Подгружаем стоимость и баланс
+async function _loadModelCost(){
+  try{
+    const r=await fetch('/api/subscription',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    const cur=d.current||{};
+    const cost=cur.model_create_cost!=null?cur.model_create_cost:5;
+    const bal=cur.tokens_balance!=null?cur.tokens_balance:0;
+    const cv=document.getElementById('modelCostVal');
+    const bv=document.getElementById('modelBalanceVal');
+    if(cv) cv.textContent=cost;
+    if(bv) bv.textContent='Balance: '+bal;
+    // Состояние «нет токенов»: красная карточка + серая кнопка
+    const card=document.getElementById('modelCostCard');
+    const btn=document.getElementById('generateBtn');
+    const hint=document.getElementById('modelCostHint');
+    const insufficient=bal<cost;
+    if(card) card.classList.toggle('no-funds', insufficient);
+    if(btn) btn.classList.toggle('no-funds', insufficient);
+    if(hint) hint.textContent='Not enough tokens — tap to top up';
+  }catch(e){}
+}
+window.addEventListener('pageshow', _loadModelCost);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _loadModelCost();
+});
+
+/* ── Rotating placeholders: prompt + name ─────────────── */
+(function(){
+  const VIBES=['shy','bimbo','girly girl','slay','girlboss','bad bitch','stunner',
+    'goth','alt-girl','clean girl','baddie','pick me girl','tomboy','femme fatale',
+    'soft girl','e-girl','cottagecore','dark academia','Y2K diva','party girl',
+    'aesthetic queen','villain era','that girl','it girl','indie sleaze','coquette'];
+  const NAMES=['Maria','Aurora','Zara','Luna','Ayami','Kira','Nova','Iris','Lila',
+    'Selene','Sage','Juno','Freya','Inara','Nyx','Mira','Ember','Wren','Elena',
+    'Sofia','Valeria','Naomi','Mila','Yuna','Aria'];
+
+  const el=document.getElementById('promptBox');
+  const nameInp=document.getElementById('nameInput');
+  let _rot=null;
+
+  function pickPrompt(){
+    const s=[...VIBES].sort(()=>Math.random()-0.5).slice(0,4);
+    if(document.activeElement!==el) el.placeholder=s.join(', ')+'...';
+  }
+  function pickName(){
+    const n=NAMES[Math.floor(Math.random()*NAMES.length)].toLowerCase();
+    if(nameInp && document.activeElement!==nameInp) nameInp.placeholder='model name • e.g. '+n;
+  }
+  function tick(){pickPrompt();pickName();}
+  function startRot(){_rot=setInterval(tick,3000);}
+  function stopRot(){clearInterval(_rot);_rot=null;}
+
+  tick();startRot();
+  renderAppearanceChips();
+
+  el.addEventListener('blur',()=>{if(!el.value)pickPrompt();});
+  el.addEventListener('input',()=>{
+    // strip leading whitespace, collapse runs of spaces/tabs to a single space
+    const cleaned=el.value.replace(/^\s+/,'').replace(/[ \t]{2,}/g,' ');
+    if(cleaned!==el.value){
+      const pos=el.selectionStart-(el.value.length-cleaned.length);
+      el.value=cleaned;
+      try{el.setSelectionRange(pos,pos);}catch(e){}
+    }
+    renderPreview();
+  });
+
+  if(nameInp){
+    nameInp.addEventListener('blur',()=>{if(!nameInp.value)pickName();});
+    nameInp.addEventListener('input',()=>{
+      // names are single-token: strip ALL whitespace
+      const cleaned=nameInp.value.replace(/\s+/g,'');
+      if(cleaned!==nameInp.value){nameInp.value=cleaned;}
+      renderPreview();
+    });
+  }
+  renderPreview();
+})();
+
+function fireConfetti(){
+  const c=document.getElementById('confetti'),colors=['#3dff6e','#ff3d9e','#ffd23d','#00d8ff','#ffffff'];
+  c.innerHTML=Array.from({length:40}).map((_,i)=>{const l=Math.random()*100,col=colors[i%5],d=Math.random()*0.5,dur=1.8+Math.random()*1.5,r=Math.random()*360;return`<div class="piece" style="left:${l}%;background:${col};transform:rotate(${r}deg);animation-duration:${dur}s;animation-delay:${d}s"></div>`;}).join('');
+  setTimeout(()=>{c.innerHTML='';},3500);
+}
+
+// ── Demo mode (?demo=1) — used by the presentation slide 4 ──
+(function(){
+  if(!new URLSearchParams(location.search).has('demo')) return;
+
+  const DEMO_PROMPT='high-fashion editorial muse — platinum blonde with piercings and a cold runway stare #editorial #highfashion #berlin';
+  const DEMO_NAME='alisa';
+  const DEMO_IMGS=[
+    {url:'assets/defoltgirl.jfif',    name:'defoltgirl.jpg'},
+    {url:'assets/asianblackhairgirl.jfif', name:'asianblackhair.jpg'},
+    {url:'assets/blondblueseysgirl.jfif',  name:'blondgirl.jpg'},
+    {url:'assets/girlmodelmexico.png', name:'mexicogirl.png'},
+  ];
+
+  let _preloaded=[];
+  let _ready=false;
+  let _pending=null;
+
+  async function preload(){
+    document.body.classList.add('demo-mode');
+    const genBtn=document.getElementById('generateBtn');
+    if(genBtn){
+      genBtn.classList.add('demo-inactive');
+      /* Click in demo mode: signal parent to start phone exit animation */
+      genBtn.addEventListener('click',function(e){
+        if(genBtn.classList.contains('demo-inactive')) return; // not active yet
+        genBtn.classList.add('demo-pressed');
+        try{parent.postMessage({type:'famous-gen-model-clicked'},'*');}catch(_){}
+      });
+    }
+    for(let i=0;i<DEMO_IMGS.length;i++){
+      const {url,name}=DEMO_IMGS[i];
+      try{
+        const res=await fetch(url);
+        const blob=await res.blob();
+        const file=new File([blob],name,{type:blob.type});
+        file._famousUrl=URL.createObjectURL(blob);
+        _preloaded[i]=file;
+      }catch(_){}
+    }
+    _ready=true;
+    if(_pending!==null){applyReveal(_pending);_pending=null;}
+  }
+
+  function applyReveal(state){
+    if(!_ready){_pending=state;return;}
+    const {photos=0}=state;
+    for(let i=0;i<DEMO_IMGS.length;i++){
+      const want=i<photos;
+      const slot=document.querySelector(`.ref-slot[data-slot="${i}"]`);
+      if(!slot) continue;
+      if(want && !refs[i]){
+        refs[i]=_preloaded[i];
+        slot.classList.add('has-img');
+        slot.innerHTML=`<img src="${refs[i]._famousUrl}" alt=""><button class="remove" onclick="removeRef(event,${i})">×</button>`;
+      } else if(!want && refs[i]){
+        refs[i]=null;
+        slot.classList.remove('has-img');
+        slot.innerHTML=`<div class="plus">+</div><button class="remove" onclick="removeRef(event,${i})">×</button>`;
+      }
+    }
+    updateRefCount();
+    renderPreview();
+  }
+
+  window.addEventListener('load',preload);
+
+  let _btnPressed=false;
+  window.addEventListener('message',function(e){
+    if(!e.data) return;
+    if(e.data.scrollTo!==undefined){
+      const fs=document.getElementById('formSection');
+      if(fs) fs.scrollTop=e.data.scrollTo;
+    }
+    if(e.data.demoReveal!==undefined){
+      applyReveal(e.data.demoReveal);
+    }
+    /* Terminal typing animation for prompt and name inputs */
+    if(e.data.demoTypeInput){
+      const {field,progress}=e.data.demoTypeInput;
+      if(field==='prompt'){
+        const pe=document.getElementById('promptBox');
+        if(pe){
+          const len=Math.floor(progress*DEMO_PROMPT.length);
+          pe.value=DEMO_PROMPT.substring(0,len);
+          pe.classList.toggle('demo-typing-active',progress>0&&progress<1);
+        }
+      } else if(field==='name'){
+        const ne=document.getElementById('nameInput');
+        if(ne){
+          const len=Math.floor(progress*DEMO_NAME.length);
+          ne.value=DEMO_NAME.substring(0,len);
+          ne.classList.toggle('demo-typing-active',progress>0&&progress<1);
+        }
+      }
+    }
+    /* Generate button activation */
+    if(e.data.demoBtnActivate===true){
+      const btn=document.getElementById('generateBtn');
+      if(btn){
+        btn.classList.remove('demo-inactive','demo-pressed');
+        btn.classList.add('demo-active');
+      }
+    }
+    if(e.data.demoBtnActivate===false){
+      const btn=document.getElementById('generateBtn');
+      if(btn){
+        btn.classList.remove('demo-active','demo-pressed');
+        btn.classList.add('demo-inactive');
+      }
+    }
+    if(e.data.pressGenerate===true && !_btnPressed){
+      _btnPressed=true;
+      const btn=document.getElementById('generateBtn');
+      if(btn) btn.classList.add('demo-pressed');
+    }
+    if(e.data.pressGenerate===false){
+      _btnPressed=false;
+      const btn=document.getElementById('generateBtn');
+      if(btn) btn.classList.remove('demo-pressed');
+    }
+  });
+})();
+</script>
+<script src="components/GenerationWidget.js"></script>
+<script src="components/famous.js"></script>
+</body>
+</html>

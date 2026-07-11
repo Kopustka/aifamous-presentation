@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" width="100" height="130" preserveAspectRatio="xMidYMid meet">
+  <!-- Paper L-shape body. Cut corners at crease endpoints (65,0) and (100,30)
+       are rounded with r=3 (quadratic Béziers) so the fold-flap corners can
+       match exactly without showing sharp joins. -->
+  <path d="M 0 0
+           L 62 0
+           Q 65 0 67.28 1.95
+           L 97.72 28.05
+           Q 100 30 100 33
+           L 100 130
+           L 0 130
+           Z" fill="#ffffff"/>
+</svg>

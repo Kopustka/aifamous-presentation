@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Model</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Model hero ───────────────────────────────────── */
+.md-hero{padding:30px 20px 20px;text-align:center;position:relative;background:linear-gradient(180deg,rgba(61,255,110,0.05),transparent);}
+.md-avatar{width:120px;height:120px;border-radius:50%;margin:0 auto;border:3px solid var(--brand);background:#222 center/cover no-repeat;box-shadow:0 0 40px rgba(61,255,110,0.3);position:relative;}
+.md-avatar::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1.5px dashed rgba(61,255,110,0.4);animation:spinRing 12s linear infinite;}
+@keyframes spinRing{to{transform:rotate(360deg);}}
+.md-name{font-family:var(--font-heavy);font-size:30px;letter-spacing:-0.03em;color:#fff;margin-top:16px;}
+.md-tags{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+.md-tag{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border-radius:999px;border:1px solid;}
+.md-tag.active{color:var(--brand);border-color:rgba(61,255,110,0.4);background:rgba(61,255,110,0.05);}
+.md-tag.lora{color:#fff;border-color:rgba(255,255,255,0.3);}
+.md-tag.lora.ready{color:var(--brand);border-color:var(--brand);}
+.md-tag.archived{color:var(--danger);border-color:rgba(255,77,109,0.4);}
+
+/* ── Bio ──────────────────────────────────────────── */
+.md-bio{margin:20px 20px 0;padding:16px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid var(--line);}
+.md-bio .b-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brand);margin-bottom:6px;}
+.md-bio .b-text{font-size:13px;line-height:1.55;color:var(--text);font-family:var(--font-display);}
+
+/* ── Metrics ──────────────────────────────────────── */
+.md-metrics{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.md-metric{padding:14px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid var(--line);}
+.md-metric.wide{grid-column:1/-1;}
+.md-metric .mm-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;color:var(--text-mute);text-transform:uppercase;margin-bottom:8px;}
+.md-metric .mm-value{font-family:var(--font-heavy);font-size:26px;color:#fff;letter-spacing:-0.03em;line-height:1;}
+.md-metric .mm-value .unit{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-left:3px;font-weight:500;}
+.md-metric .mm-delta{display:inline-flex;align-items:center;gap:2px;font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--brand);margin-top:6px;}
+.md-metric .mm-bars{display:flex;gap:3px;align-items:flex-end;height:40px;margin-top:10px;}
+.md-metric .mm-bars .mb{flex:1;background:rgba(255,255,255,0.2);border-radius:2px;min-height:6px;}
+.md-metric .mm-bars .mb.hl{background:var(--brand);}
+
+/* ── Action row ───────────────────────────────────── */
+.md-action-row{padding:0 20px 20px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.md-action{aspect-ratio:1/1;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .2s;}
+.md-action:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);transform:translateY(-2px);}
+.md-action svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;}
+.md-action .a-lbl{font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;color:var(--text-dim);text-transform:uppercase;}
+.md-action.danger svg{stroke:var(--danger);}
+.md-action.danger .a-lbl{color:var(--danger);}
+.md-action.public-on{background:rgba(61,255,110,0.1);border-color:rgba(61,255,110,0.4);}
+.md-action.public-on svg{stroke:var(--brand);}
+.md-action.public-on .a-lbl{color:var(--brand);}
+/* Disabled — для соавторов (нет права на edit/delete) */
+.md-action.locked{opacity:0.45;cursor:not-allowed;background:rgba(255,255,255,0.02);}
+.md-action.locked:hover{background:rgba(255,255,255,0.02);border-color:var(--line);transform:none;}
+.md-action.locked svg{stroke:var(--text-mute);}
+.md-action.locked.danger svg{stroke:var(--text-mute);}
+.md-action.locked .a-lbl{color:var(--text-mute);}
+.md-action.locked.danger .a-lbl{color:var(--text-mute);}
+
+/* ── Visibility banner ────────────────────────────── */
+.vis-banner{margin:0 20px 16px;padding:12px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:11px;}
+.vis-banner.public{background:rgba(61,255,110,0.08);border:1px solid rgba(61,255,110,0.25);color:var(--brand);}
+.vis-banner.private{background:rgba(255,255,255,0.03);border:1px solid var(--line);color:var(--text-mute);}
+.vis-banner svg{width:14px;height:14px;flex-shrink:0;}
+.vis-banner .vb-link{margin-left:auto;color:var(--brand);cursor:pointer;text-decoration:underline;white-space:nowrap;}
+
+/* ── Edit form ────────────────────────────────────── */
+.edit-form{margin:0 20px 20px;padding:16px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(61,255,110,0.2);display:none;}
+.edit-form.open{display:block;}
+.edit-input{width:100%;background:rgba(255,255,255,0.04);border:1.5px solid var(--line-2);border-radius:12px;padding:12px;font-size:13px;font-family:var(--font-mono);color:#fff;outline:none;resize:none;margin-bottom:10px;}
+.edit-input:focus{border-color:var(--brand);}
+.edit-save{width:100%;background:var(--brand);color:#001b08;border:none;border-radius:999px;padding:13px;font-size:13px;font-weight:700;font-family:var(--font-mono);cursor:pointer;letter-spacing:0.05em;}
+
+/* ── Share / Privacy panel ────────────────────────── */
+.sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;display:none;backdrop-filter:blur(6px);}
+.sp-overlay.open{display:block;}
+.sp-sheet{position:fixed;bottom:0;left:0;right:0;background:#111114;border-radius:24px 24px 0 0;z-index:401;padding:0 20px max(28px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);}
+.sp-sheet.open{transform:translateY(0);}
+.sp-handle{width:36px;height:4px;background:rgba(255,255,255,0.18);border-radius:2px;margin:14px auto 20px;}
+.sp-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px;}
+.sp-vis{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;margin-bottom:12px;}
+.sp-vis.pub{background:rgba(61,255,110,0.08);border:1px solid rgba(61,255,110,0.25);}
+.sp-vis.prv{background:rgba(255,255,255,0.04);border:1px solid var(--line);}
+.sp-vis svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke-width:2;}
+.sp-vis.pub svg{stroke:var(--brand);}
+.sp-vis.prv svg{stroke:var(--text-dim);}
+.sp-vis-text{flex:1;}
+.sp-vis-title{font-size:14px;font-weight:600;color:#fff;letter-spacing:-0.01em;}
+.sp-vis-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px;}
+.sp-toggle{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 14px;font-family:var(--font-mono);font-size:11px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;}
+.sp-toggle:disabled{opacity:.5;cursor:default;}
+.sp-toggle.locked{opacity:0.45;cursor:not-allowed;background:rgba(255,255,255,0.04);border-color:var(--line);color:var(--text-mute);}
+.sp-toggle.locked:hover{background:rgba(255,255,255,0.04);border-color:var(--line);}
+.sp-err{font-family:var(--font-mono);font-size:11px;color:#ff4d6d;text-align:center;padding:4px 0 8px;display:none;}
+.sp-err.show{display:block;}
+.sp-btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:15px;border-radius:14px;font-family:var(--font-mono);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.04em;margin-bottom:8px;border:none;transition:opacity .15s;}
+.sp-btn:active{opacity:.8;}
+.sp-btn.primary{background:var(--brand);color:#001b08;}
+.sp-btn.secondary{background:rgba(255,255,255,0.06);color:#fff;border:1px solid var(--line);}
+.sp-btn.secondary.copied{border-color:var(--brand);color:var(--brand);}
+.sp-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;}
+.sp-btn.primary svg{stroke:#001b08;}
+/* Public settings — toggles + tagline (collapsible) */
+.ps-section{margin:14px 0 10px;padding:0;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--line);overflow:hidden;}
+.ps-section-head{display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;user-select:none;transition:background .15s;}
+.ps-section-head:hover{background:rgba(255,255,255,0.02);}
+.ps-section-head .ps-section-title{flex:1;margin:0;}
+.ps-section-head .ps-chev{width:18px;height:18px;color:var(--text-dim);flex-shrink:0;transition:transform .25s;}
+.ps-section-head .ps-chev svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:2.4;}
+.ps-section.open .ps-chev{transform:rotate(180deg);}
+.ps-section-body{display:none;padding:0 14px 14px;}
+.ps-section.open .ps-section-body{display:block;}
+.ps-summary{font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);letter-spacing:0.04em;margin-top:4px;}
+.ps-section-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;}
+.ps-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);}
+.ps-row:last-child{border-bottom:none;}
+.ps-row .ps-text{flex:1;min-width:0;}
+.ps-row .ps-name{font-size:13px;color:#fff;font-weight:600;letter-spacing:-0.01em;}
+.ps-row .ps-desc{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:3px;letter-spacing:0.02em;line-height:1.4;}
+/* Switch */
+.ps-switch{flex-shrink:0;width:42px;height:24px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid var(--line);position:relative;cursor:pointer;transition:background .2s,border-color .2s;}
+.ps-switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfcfd5;transition:transform .22s cubic-bezier(.4,0,.2,1);}
+.ps-switch.on{background:var(--brand);border-color:var(--brand);}
+.ps-switch.on::after{transform:translateX(18px);background:#001b08;}
+.ps-tagline{margin-top:8px;}
+.ps-tagline label{display:block;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;}
+.ps-tagline input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:#fff;font-family:var(--font-mono);font-size:12px;outline:none;box-sizing:border-box;}
+.ps-tagline input:focus{border-color:var(--brand);}
+.ps-save{margin-top:10px;width:100%;padding:12px;border:none;border-radius:12px;background:var(--brand);color:#000;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:opacity .18s;}
+.ps-save:disabled{opacity:0.5;cursor:wait;}
+.ps-hidden-by-author{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.04em;text-align:center;padding:10px;background:rgba(255,255,255,0.02);border:1px dashed var(--line);border-radius:10px;margin-bottom:10px;}
+
+/* toast above all panels */
+.toast-container{z-index:500!important;}
+
+/* ── Confirm overlay ──────────────────────────────── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:200;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:var(--panel);border:1px solid var(--line-2);border-radius:22px;padding:28px 24px;max-width:320px;width:90%;text-align:center;}
+.confirm-title{font-size:18px;font-family:var(--font-heavy);color:#fff;margin-bottom:10px;letter-spacing:-0.02em;}
+.confirm-text{font-size:13px;font-family:var(--font-display);color:var(--text-dim);margin-bottom:24px;line-height:1.6;}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-cancel{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:999px;padding:13px;font-size:13px;font-family:var(--font-mono);color:var(--text-dim);cursor:pointer;}
+.confirm-ok{flex:1;background:var(--danger);border:none;border-radius:999px;padding:13px;font-size:13px;font-weight:700;font-family:var(--font-mono);color:#fff;cursor:pointer;}
+
+/* ── Generic in-app modal (для подтверждений типа удаления коллаб.) ── */
+.cm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:300;padding:20px;opacity:0;transition:opacity .2s;}
+.cm-overlay.open{display:flex;opacity:1;}
+.cm-box{width:100%;max-width:340px;background:#0e0e10;border:1px solid var(--line);border-radius:22px;overflow:hidden;transform:scale(0.96);transition:transform .22s cubic-bezier(.22,.61,.36,1);box-shadow:0 30px 80px -10px rgba(0,0,0,0.8);}
+.cm-overlay.open .cm-box{transform:scale(1);}
+.cm-head{padding:24px 22px 8px;text-align:center;}
+.cm-icon{width:54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;background:linear-gradient(135deg,rgba(255,77,109,0.18),rgba(255,77,109,0.05));border:1px solid rgba(255,77,109,0.3);color:var(--danger);}
+.cm-icon.brand{background:linear-gradient(135deg,rgba(61,255,110,0.18),rgba(61,255,110,0.05));border-color:rgba(61,255,110,0.3);color:var(--brand);}
+.cm-icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;}
+.cm-title{font-family:var(--font-heavy);font-size:20px;letter-spacing:-0.02em;color:#fff;line-height:1.15;}
+.cm-body{padding:6px 22px 18px;}
+.cm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;}
+.cm-row:last-child{border-bottom:none;}
+.cm-row .cm-k{color:var(--text-dim);}
+.cm-row .cm-v{color:#fff;font-weight:700;max-width:60%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cm-note{padding:0 22px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.02em;line-height:1.5;text-align:center;}
+.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 18px 18px;}
+.cm-btn{padding:14px;border:none;border-radius:14px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:opacity .18s,transform .15s;}
+.cm-btn:active{transform:scale(0.97);}
+.cm-btn.ghost{background:rgba(255,255,255,0.05);color:#fff;border:1px solid var(--line);}
+.cm-btn.danger{background:var(--danger);color:#fff;}
+.cm-btn.primary{background:var(--brand);color:#000;}
+.cm-btn:disabled{opacity:0.55;cursor:wait;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" onclick="history.back()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title" id="pageTitle">Model</div>
+    <div class="sub-step" onclick="shareModel()">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--brand);fill:none;stroke-width:2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="app-scroll" id="content">
+    <div class="loading-ring"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn active" onclick="location.href='all_videos.html?tab=models'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn" onclick="location.href='all_videos.html'">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Share / Privacy panel -->
+<div class="sp-overlay" id="spOverlay" onclick="closeSharePanel()"></div>
+<div class="sp-sheet" id="spSheet">
+  <div class="sp-handle"></div>
+  <div class="sp-title">Share & Privacy</div>
+  <div id="spStatus"></div>
+  <div class="sp-err" id="spErr">Failed to update. Try again.</div>
+  <div id="spPublicSettings"></div>
+  <div id="spActions"></div>
+</div>
+
+<!-- Confirm overlay -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Delete model?</div>
+    <div class="confirm-text">This action cannot be undone. All associated files will be deleted.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-ok" onclick="doDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- In-app confirm modal (used for collaborator removal etc.) -->
+<div class="cm-overlay" id="cmOverlay">
+  <div class="cm-box" role="dialog" aria-modal="true">
+    <div class="cm-head">
+      <div class="cm-icon" id="cmIcon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+      </div>
+      <div class="cm-title" id="cmTitle">Confirm</div>
+    </div>
+    <div class="cm-body" id="cmBody"></div>
+    <div class="cm-note" id="cmNote"></div>
+    <div class="cm-actions">
+      <button class="cm-btn ghost" id="cmCancel">Cancel</button>
+      <button class="cm-btn danger" id="cmConfirm">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<input type="file" id="photoInput" accept="image/*" style="display:none">
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+const params=new URLSearchParams(location.search);
+const modelId=params.get('id');
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');}
+
+/* ── Share / Privacy panel ── */
+function shareModel(){
+  if(!modelData) return;
+  renderSharePanel();
+  document.getElementById('spOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('spSheet').classList.add('open'),10);
+}
+function closeSharePanel(){
+  document.getElementById('spSheet').classList.remove('open');
+  setTimeout(()=>document.getElementById('spOverlay').classList.remove('open'),320);
+}
+function renderSharePanel(){
+  const pub=!!(modelData?.is_public);
+  const ownerCan=!!(modelData?.can_manage);
+  document.getElementById('spStatus').innerHTML=`
+    <div class="sp-vis ${pub?'pub':'prv'}">
+      <svg viewBox="0 0 24 24">
+        ${pub
+          ?'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'
+          :'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'}
+      </svg>
+      <div class="sp-vis-text">
+        <div class="sp-vis-title">${pub?'Public':'Private'}</div>
+        <div class="sp-vis-sub">${pub?'Anyone with the link can view':'Only the owner can see this model'}</div>
+      </div>
+      <button class="sp-toggle${ownerCan?'':' locked'}" id="spToggleBtn" onclick="${ownerCan?'toggleVisibility()':'showOwnerOnly()'}">
+        ${pub?'Make private':'Make public'}
+      </button>
+    </div>`;
+  document.getElementById('spErr').classList.remove('show');
+
+  // Public-display settings: только владелец и только если модель публичная.
+  // Изначально свернуто; дефолтные настройки применяются автоматически.
+  const psBox=document.getElementById('spPublicSettings');
+  if(psBox){
+    if(pub && ownerCan){
+      psBox.innerHTML=`
+        <div class="ps-section" id="psSection">
+          <div class="ps-section-head" onclick="togglePSSection()">
+            <div>
+              <div class="ps-section-title">Public page settings</div>
+              <div class="ps-summary" id="psSummary">Default visibility</div>
+            </div>
+            <div class="ps-chev"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+          </div>
+          <div class="ps-section-body">
+            <div id="psList"></div>
+            <div class="ps-tagline">
+              <label>Tagline (optional)</label>
+              <input id="psTagline" maxlength="120" placeholder="Short subtitle shown under the name">
+            </div>
+            <button class="ps-save" id="psSave" onclick="savePublicSettings()">Save settings</button>
+          </div>
+        </div>`;
+      loadPublicSettings();
+    } else {
+      psBox.innerHTML='';
+    }
+  }
+  document.getElementById('spActions').innerHTML=pub?`
+    <button class="sp-btn primary" onclick="shareTelegram()">
+      <svg viewBox="0 0 24 24"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7a2.25 2.25 0 0 0 .126 4.154l4.371 1.457 1.457 4.371a2.25 2.25 0 0 0 4.154.126l7-16.5a2.242 2.242 0 0 0-.586-2.823z" fill="#001b08" stroke="none"/></svg>
+      Share on Telegram
+    </button>
+    <button class="sp-btn secondary" id="spCopyBtn" onclick="copyShareLink()">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Copy link
+    </button>`:'';
+}
+/* ── Публичные настройки ── */
+const PS_FIELDS=[
+  {key:'show_bio',        name:'Show bio',         desc:'Display the bio text under the name.'},
+  {key:'show_created_at', name:'Show creation date', desc:'Display when the model was created.'},
+  {key:'show_videos',     name:'Show videos',      desc:'Display the gallery of generated videos.'},
+  {key:'show_lora_badge', name:'Show LoRA badge',  desc:'Indicate that this model has a trained LoRA.'},
+];
+let _psState=null;
+
+function renderPSList(){
+  const list=document.getElementById('psList');
+  if(!list||!_psState) return;
+  list.innerHTML=PS_FIELDS.map(f=>(
+    '<div class="ps-row">'+
+      '<div class="ps-text"><div class="ps-name">'+f.name+'</div><div class="ps-desc">'+f.desc+'</div></div>'+
+      '<div class="ps-switch'+(_psState[f.key]?' on':'')+'" data-key="'+f.key+'" onclick="togglePS(this)"></div>'+
+    '</div>'
+  )).join('');
+  const inp=document.getElementById('psTagline');
+  if(inp) inp.value=_psState.tagline||'';
+  refreshPSSummary();
+}
+
+function refreshPSSummary(){
+  const sum=document.getElementById('psSummary'); if(!sum||!_psState) return;
+  const off=PS_FIELDS.filter(f=>!_psState[f.key]).length;
+  const tag=_psState.tagline?1:0;
+  if(off===0 && !tag) sum.textContent='Default visibility — everything visible';
+  else if(off===0 && tag) sum.textContent='Custom tagline · all sections visible';
+  else sum.textContent=off+' section'+(off===1?'':'s')+' hidden'+(tag?' · custom tagline':'');
+}
+
+function togglePSSection(){
+  const sec=document.getElementById('psSection'); if(!sec) return;
+  sec.classList.toggle('open');
+}
+
+function togglePS(el){
+  const k=el.dataset.key; if(!k||!_psState) return;
+  _psState[k]=!_psState[k];
+  el.classList.toggle('on', !!_psState[k]);
+}
+
+async function loadPublicSettings(){
+  try{
+    const r=await fetch('/api/model/'+modelId+'/public-settings',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    _psState=d.settings||{};
+    renderPSList();
+  }catch(e){}
+}
+
+async function savePublicSettings(){
+  if(!_psState) return;
+  const btn=document.getElementById('psSave');
+  if(btn){ btn.disabled=true; btn.textContent='Saving...'; }
+  const inp=document.getElementById('psTagline');
+  const tagline=inp?inp.value.trim():'';
+  const payload={
+    show_bio:        !!_psState.show_bio,
+    show_created_at: !!_psState.show_created_at,
+    show_videos:     !!_psState.show_videos,
+    show_lora_badge: !!_psState.show_lora_badge,
+    tagline:         tagline,
+  };
+  try{
+    const r=await fetch('/api/model/'+modelId+'/public-settings',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify(payload)
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ showToast(d.error||'Failed to save', true); return; }
+    _psState=d.settings||_psState;
+    showToast('Public settings saved');
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  }catch(e){ showToast('Network error', true); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Save settings'; } }
+}
+
+function shareTelegram(){
+  const url=`${location.origin}/miniapp/model_share.html?id=${modelId}`;
+  const tgUrl='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent('Check out my AI model on FAMOUS!');
+  if(tg&&tg.openLink) tg.openLink(tgUrl);
+  else window.open(tgUrl,'_blank');
+}
+function copyShareLink(){
+  const url=`${location.origin}/miniapp/model_share.html?id=${modelId}`;
+  const btn=document.getElementById('spCopyBtn');
+  const done=()=>{
+    showToast('Link copied!');
+    if(btn){btn.classList.add('copied');setTimeout(()=>btn.classList.remove('copied'),1500);}
+  };
+  if(navigator.clipboard) navigator.clipboard.writeText(url).then(done);
+  else{const ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();}
+}
+async function toggleVisibility(){
+  if(!modelData) return;
+  const newVal=!modelData.is_public;
+  const btn=document.getElementById('spToggleBtn');
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  document.getElementById('spErr').classList.remove('show');
+  try{
+    const res=await fetch(`/api/model/${modelId}/visibility`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({is_public:newVal}),
+    });
+    if(!res.ok) throw new Error();
+    modelData.is_public=newVal;
+    renderSharePanel();
+    updateVisBanner(newVal);
+    showToast(newVal?'Model is now public':'Model is now private');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=newVal?'Make public':'Make private';}
+    document.getElementById('spErr').classList.add('show');
+  }
+}
+function updateVisBanner(isPublic){
+  const b=document.querySelector('.vis-banner');
+  if(!b) return;
+  if(isPublic){
+    b.className='vis-banner public';
+    b.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Public — anyone with the link can view<span class="vb-link" onclick="copyShareLink()">Copy link</span>`;
+  } else {
+    b.className='vis-banner private';
+    b.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Private — only you can see this model`;
+  }
+}
+
+let modelData=null;
+
+async function loadModel(){
+  if(!modelId){document.getElementById('content').innerHTML='<div class="empty-state">No model selected</div>';return;}
+  try{
+    const res=await fetch('/api/model/'+modelId,{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error('not found');
+    modelData=await res.json();
+    render(modelData);
+    loadMetrics(modelData.id);
+  }catch(e){
+    document.getElementById('content').innerHTML='<div class="empty-state">Model not found</div>';
+  }
+}
+
+function fmtDate(s){return s?s.slice(0,10):'—';}
+
+function render(m){
+  const isArchived=m.status==='archived';
+  const isOwner=!!m.can_manage;
+  const role=m.role||'viewer';
+  document.getElementById('pageTitle').textContent=m.name;
+
+  document.getElementById('content').innerHTML=`
+    <div class="md-hero">
+      <div class="md-avatar" id="mdAvatar" style="background-image:url('${m.preview_url||''}')"></div>
+      <div class="md-name">${m.name}</div>
+      <div class="md-tags">
+        <span class="md-tag${isArchived?' archived':' active'}">${isArchived?'ARCHIVED':'● ACTIVE'}</span>
+        <span class="md-tag lora${m.has_lora?' ready':''}">${m.has_lora?'LORA READY':'NO LORA'}</span>
+        ${role==='collaborator'?'<span class="md-tag" style="background:rgba(0,216,255,0.12);color:#00d8ff;border:1px solid rgba(0,216,255,0.3)">COLLAB</span>':''}
+      </div>
+    </div>
+
+    ${(m.bio||m.description||m.created_at)?`
+    <div class="md-bio">
+      <div class="b-label">BIO</div>
+      <div class="b-text">${m.bio||m.description||''}</div>
+      ${m.created_at?`<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-mute);margin-top:8px">Created ${fmtDate(m.created_at)}</div>`:''}
+    </div>`:''}
+
+    <div class="md-metrics">
+      <div class="md-metric wide">
+        <div class="mm-label">Content performance</div>
+        <div class="mm-bars" id="mdBars">
+          ${[40,65,50,75,90,70,100,85,95,110,100,125].map((h,i)=>`<div class="mb${i>=8?' hl':''}" style="height:${h*0.32}px"></div>`).join('')}
+        </div>
+        <div class="mm-value" id="mdViewValue">—</div>
+        <div class="mm-delta">
+          <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          <span id="mdViewDelta">avg views</span>
+        </div>
+      </div>
+      <div class="md-metric">
+        <div class="mm-label">Engagement</div>
+        <div class="mm-value" id="mdEngValue">—<span class="unit">%</span></div>
+        <div class="mm-delta" id="mdEngDelta">
+          <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          growth
+        </div>
+      </div>
+      <div class="md-metric">
+        <div class="mm-label">Videos made</div>
+        <div class="mm-value" id="mdVidCount">—</div>
+        <div class="mm-delta">
+          <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          generated
+        </div>
+      </div>
+    </div>
+
+    ${m.is_public
+      ? `<div class="vis-banner public">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+           Public — anyone with the link can view
+           <span class="vb-link" onclick="copyShareLink()">Copy link</span>
+         </div>`
+      : `<div class="vis-banner private">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+           Private — only you can see this model
+         </div>`}
+
+    <div class="md-action-row">
+      <div class="md-action" onclick="generateWithModel()">
+        <svg viewBox="0 0 24 24"><rect x="2" y="4" width="14" height="16" rx="2"/><path d="M16 9l6-3v12l-6-3"/></svg>
+        <div class="a-lbl">Generate</div>
+      </div>
+      <div class="md-action" onclick="location.href='model_videos.html?id=${m.id}&name=${encodeURIComponent(m.name)}&preview=${encodeURIComponent(m.preview_url||'')}'" >
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="a-lbl">Gallery</div>
+      </div>
+      <div class="md-action${isOwner?'':' locked'}${m.has_lora?' public-on':''}" onclick="${isOwner?'trainLora()':'showOwnerOnly()'}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <div class="a-lbl">${m.has_lora?'LoRA ✓':'LoRA'}</div>
+      </div>
+      <div class="md-action${isOwner?'':' locked'}" onclick="${isOwner?'toggleEdit()':'showOwnerOnly()'}">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <div class="a-lbl">Edit</div>
+      </div>
+      <div class="md-action danger${isOwner?'':' locked'}" onclick="${isOwner?`document.getElementById('confirmOverlay').classList.add('open')`:'showOwnerOnly()'}">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <div class="a-lbl">Delete</div>
+      </div>
+    </div>
+
+    ${role==='collaborator'?`
+    <div style="margin:0 20px 12px;padding:14px 16px;border-radius:14px;background:rgba(0,216,255,0.06);border:1px solid rgba(0,216,255,0.25);display:flex;align-items:center;gap:12px">
+      <div style="width:32px;height:32px;border-radius:10px;background:rgba(0,216,255,0.15);color:#00d8ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-mono);font-size:11px;color:#fff;font-weight:600">You're a collaborator</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px">Generate videos with this model. Leave any time.</div>
+      </div>
+      <button onclick="leaveCollaboration()" style="background:rgba(255,77,109,0.12);color:var(--danger);border:1px solid rgba(255,77,109,0.25);border-radius:8px;padding:8px 14px;font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.04em;text-transform:uppercase;flex-shrink:0">Leave</button>
+    </div>`:''}
+
+    ${isOwner?`
+    <div id="collabSection" style="margin:18px 20px 0;padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,0.02)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase">Collaborators</div>
+        <button onclick="showCollabAdd()" style="background:var(--brand);color:#000;border:none;border-radius:8px;padding:6px 12px;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer">+ Add</button>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:10px">People you grant access can generate videos with this model. They can't edit or delete it.</div>
+      <div id="collabList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="collabAddBox" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,0.03)">
+        <input id="collabInput" placeholder="@username or Telegram ID" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:#fff;font-family:var(--font-mono);font-size:12px;outline:none;box-sizing:border-box">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <button onclick="hideCollabAdd()" style="background:rgba(255,255,255,0.05);color:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer">Cancel</button>
+          <button onclick="addCollaborator()" style="background:var(--brand);color:#000;border:none;border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer">Grant access</button>
+        </div>
+      </div>
+    </div>`:''}
+
+    <div class="edit-form" id="editForm">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--brand);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px">Edit model</div>
+      <input class="edit-input" id="editName" placeholder="Name" value="${m.name||''}">
+      <textarea class="edit-input" id="editBio" rows="4" placeholder="Bio">${m.bio||''}</textarea>
+      <button class="edit-save" onclick="saveEdit()">Save changes</button>
+    </div>
+
+    <div style="height:20px"></div>
+  `;
+  if(window.pageStagger) window.pageStagger(document.getElementById('content'));
+}
+
+function generateWithModel(){
+  if(modelData){
+    sessionStorage.setItem('selectedModelId',modelData.id);
+    sessionStorage.setItem('selectedModelName',modelData.name);
+    sessionStorage.setItem('selectedModelPreview',modelData.preview_url||'');
+  }
+  location.href='create_video.html';
+}
+
+function toggleEdit(){
+  const f=document.getElementById('editForm');
+  if(f) f.classList.toggle('open');
+}
+
+function showOwnerOnly(){
+  showToast('Only the owner can manage this model', true);
+  if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+}
+
+async function trainLora(){
+  if(!modelData) return;
+  const ok=await showConfirmModal({
+    title: modelData.has_lora?'Retrain LoRA?':'Train LoRA?',
+    icon:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    rows:[
+      {k:'Model',  v:modelData.name||''},
+      {k:'Time',   v:'~20–40 min'},
+      {k:'Status', v:modelData.has_lora?'Already trained':'Not trained'},
+    ],
+    note:'You\'ll get a confirmation message in the bot to start training.',
+    confirmLabel:modelData.has_lora?'Retrain':'Start',
+    danger:false,
+  });
+  if(!ok) return;
+  if(tg && tg.sendData){
+    tg.sendData(JSON.stringify({action:'train_lora', model_id:modelData.id}));
+    // Telegram автоматически закроет miniapp после sendData
+  } else {
+    showToast('Open from Telegram to start training', true);
+  }
+}
+
+async function saveEdit(){
+  const name=document.getElementById('editName').value.trim();
+  const bio=document.getElementById('editBio').value.trim();
+  if(!name){showToast('Name required',true);return;}
+  try{
+    const res=await fetch('/api/model/'+modelId+'/update',{method:'POST',headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},body:JSON.stringify({name,bio:bio||null})});
+    const d=await res.json();
+    if(d.ok){showToast('Saved!');await loadModel();}
+    else showToast(d.error||'Error',true);
+  }catch(e){showToast('Error',true);}
+}
+
+async function doDelete(){
+  closeConfirm();
+  try{
+    const res=await fetch('/api/model/'+modelId+'/delete',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}});
+    const d=await res.json();
+    if(d.ok){showToast('Deleted');setTimeout(()=>location.replace('main.html'),1000);}
+    else showToast(d.error||'Error',true);
+  }catch(e){showToast('Error',true);}
+}
+
+document.getElementById('photoInput').addEventListener('change',async function(){
+  if(!this.files[0]) return;
+  const fd=new FormData(); fd.append('file',this.files[0]);
+  try{
+    const res=await fetch('/api/model/'+modelId+'/photo',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()},body:fd});
+    const d=await res.json();
+    if(d.ok){showToast('Photo added!');await loadModel();}
+    else showToast(d.error||'Error',true);
+  }catch(e){showToast('Error',true);}
+  this.value='';
+});
+
+async function loadMetrics(id){
+  /* Демо: случайная «фейковая» статистика при каждой загрузке страницы модели */
+  const rnd=(min,max)=>min+Math.random()*(max-min);
+  const viewsStr=rnd(6,48).toFixed(1)+'K';
+  const eng=rnd(3.5,12.5).toFixed(1);
+  const vids=Math.round(rnd(18,180));
+  const v=document.getElementById('mdViewValue'); if(v) v.textContent=viewsStr;
+  const e=document.getElementById('mdEngValue'); if(e) e.innerHTML=eng+'<span class="unit">%</span>';
+  const c=document.getElementById('mdVidCount'); if(c) c.textContent=vids;
+  const bars=document.querySelectorAll('#mdBars .mb');
+  const n=bars.length, active=Math.floor(rnd(n*0.5,n-1));
+  bars.forEach((b,i)=>{b.style.height=Math.round(rnd(0.28,1)*35)+'px';b.classList.toggle('hl',i>=active);});
+}
+
+async function loadCollaborators(){
+  if(!modelData||!modelData.can_manage) return;
+  const list=document.getElementById('collabList'); if(!list) return;
+  try{
+    const r=await fetch('/api/model/'+modelId+'/collaborators',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    const rows=d.collaborators||[];
+    if(!rows.length){
+      list.innerHTML='<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-mute);text-align:center;padding:14px 0">No collaborators yet</div>';
+      return;
+    }
+    list.innerHTML=rows.map(r=>{
+      const name=[r.first_name,r.last_name].filter(Boolean).join(' ')||(r.username?'@'+r.username:'#'+r.user_id);
+      const sub=r.username?('@'+r.username+' · ID '+r.user_id):('ID '+r.user_id);
+      const isPending=(r.status==='pending');
+      const badge=isPending
+        ? '<span style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;background:rgba(255,210,61,0.14);color:#ffd23d;border:1px solid rgba(255,210,61,0.3);padding:3px 7px;border-radius:6px;margin-left:6px">PENDING</span>'
+        : '';
+      const removeLabel=isPending?'Cancel':'Remove';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:10px">'+
+        '<div style="width:32px;height:32px;border-radius:50%;background:rgba(0,216,255,0.12);color:#00d8ff;display:flex;align-items:center;justify-content:center;font-family:var(--font-heavy);font-size:13px;flex-shrink:0">'+(name[0]||'?').toUpperCase()+'</div>'+
+        '<div style="flex:1;min-width:0;overflow:hidden">'+
+          '<div style="font-family:var(--font-mono);font-size:12px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center">'+name+badge+'</div>'+
+          '<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-mute);margin-top:2px">'+sub+'</div>'+
+        '</div>'+
+        '<button onclick="removeCollaborator('+r.user_id+')" style="background:rgba(255,77,109,0.12);color:var(--danger);border:1px solid rgba(255,77,109,0.25);border-radius:8px;padding:6px 10px;font-family:var(--font-mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.04em;text-transform:uppercase">'+removeLabel+'</button>'+
+      '</div>';
+    }).join('');
+  }catch(e){}
+}
+
+function showCollabAdd(){
+  const box=document.getElementById('collabAddBox'); if(box) box.style.display='block';
+  const inp=document.getElementById('collabInput'); if(inp) inp.focus();
+}
+function hideCollabAdd(){
+  const box=document.getElementById('collabAddBox'); if(box) box.style.display='none';
+  const inp=document.getElementById('collabInput'); if(inp) inp.value='';
+}
+async function addCollaborator(){
+  const inp=document.getElementById('collabInput');
+  const v=(inp&&inp.value||'').trim();
+  if(!v){showToast('Enter @username or Telegram ID', true); return;}
+  try{
+    const r=await fetch('/api/model/'+modelId+'/collaborator/add',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({user_id:v})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){showToast(d.error||'Failed to add', true); return;}
+    let msg='Invite sent';
+    if(d.already_existed){
+      msg=d.status==='active'?'Already a collaborator':'Invite already pending';
+    }
+    showToast(msg);
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    hideCollabAdd();
+    loadCollaborators();
+  }catch(e){showToast('Network error', true);}
+}
+function showConfirmModal({title, rows, note, confirmLabel, cancelLabel, danger=true, icon}){
+  return new Promise((resolve)=>{
+    const overlay=document.getElementById('cmOverlay');
+    const titleEl=document.getElementById('cmTitle');
+    const bodyEl=document.getElementById('cmBody');
+    const noteEl=document.getElementById('cmNote');
+    const okBtn=document.getElementById('cmConfirm');
+    const cnBtn=document.getElementById('cmCancel');
+    const iconEl=document.getElementById('cmIcon');
+
+    titleEl.textContent=title||'Confirm';
+    if(icon) iconEl.innerHTML=icon;
+    iconEl.className='cm-icon'+(danger?'':' brand');
+    bodyEl.innerHTML=(rows||[]).map(r=>(
+      '<div class="cm-row"><span class="cm-k">'+r.k+'</span><span class="cm-v">'+r.v+'</span></div>'
+    )).join('');
+    noteEl.textContent=note||'';
+    noteEl.style.display=note?'':'none';
+    okBtn.textContent=confirmLabel||'Confirm';
+    cnBtn.textContent=cancelLabel||'Cancel';
+    okBtn.className='cm-btn '+(danger?'danger':'primary');
+    okBtn.disabled=false;
+
+    const close=(result)=>{
+      overlay.classList.remove('open');
+      okBtn.onclick=null; cnBtn.onclick=null; overlay.onclick=null;
+      if(tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred) tg.HapticFeedback.impactOccurred('light');
+      resolve(result);
+    };
+    okBtn.onclick=()=>{ okBtn.disabled=true; close(true); };
+    cnBtn.onclick=()=>close(false);
+    overlay.onclick=(e)=>{ if(e.target===overlay) close(false); };
+    overlay.classList.add('open');
+  });
+}
+
+async function leaveCollaboration(){
+  const ok=await showConfirmModal({
+    title:'Leave collaboration?',
+    rows:[
+      {k:'Model', v:(modelData?modelData.name:'')},
+      {k:'Action', v:'Revoke your own access'},
+    ],
+    note:'You won’t be able to generate videos with this model after leaving. The owner can add you again later.',
+    confirmLabel:'Leave',
+    danger:true,
+  });
+  if(!ok) return;
+  try{
+    const r=await fetch('/api/model/'+modelId+'/collaborator/leave',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){showToast(d.error||'Failed to leave', true); return;}
+    showToast('You left the model');
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    // Чтобы back-стрелка в разделе моделей вернула к этой модели.
+    try{ sessionStorage.setItem('back_to_model_id', String(modelId)); }catch(e){}
+    setTimeout(()=>location.href='all_videos.html?tab=models', 600);
+  }catch(e){showToast('Network error', true);}
+}
+
+async function removeCollaborator(userId){
+  // Найдём отображаемое имя коллаба, чтобы показать в модалке
+  let displayName='ID '+userId;
+  try{
+    const list=document.getElementById('collabList');
+    if(list){
+      const btn=list.querySelector('button[onclick*="removeCollaborator('+userId+')"]');
+      if(btn){
+        const row=btn.parentElement;
+        const nameEl=row && row.querySelector('div > div');
+        if(nameEl) displayName=nameEl.textContent.trim();
+      }
+    }
+  }catch(e){}
+
+  const ok=await showConfirmModal({
+    title:'Revoke access?',
+    rows:[
+      {k:'User', v:displayName},
+      {k:'Action', v:'Remove from this model'},
+    ],
+    note:'They will no longer be able to generate videos with this model. Their previously generated videos remain.',
+    confirmLabel:'Revoke',
+    danger:true,
+  });
+  if(!ok) return;
+
+  try{
+    const r=await fetch('/api/model/'+modelId+'/collaborator/remove',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({user_id:userId})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){showToast(d.error||'Failed', true); return;}
+    showToast('Access revoked');
+    loadCollaborators();
+  }catch(e){showToast('Network error', true);}
+}
+
+// Запустить collab-загрузку после рендера модели
+const _origLoad = loadModel;
+loadModel = async function(){ await _origLoad(); await loadCollaborators(); };
+
+loadModel();
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>

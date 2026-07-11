@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Face Replacement - FAMOUS</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/GenerationWidget.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100%;background:#111;font-family:Arial,sans-serif;color:#fff;}
+body{overflow-x:hidden;}
+.wrapper{display:flex;justify-content:center;min-height:100vh;min-height:100dvh;width:100%;background:linear-gradient(to right,#161616 0%,#161616 calc(50% - 215px),#000 calc(50% - 215px),#000 calc(50% + 215px),#161616 calc(50% + 215px),#161616 100%);}
+.app{width:100%;max-width:430px;min-width:320px;min-height:100vh;min-height:100dvh;background:#000;border-left:1px solid #1f1f1f;border-right:1px solid #1f1f1f;padding-top:max(20px,env(safe-area-inset-top));padding-right:16px;padding-bottom:max(32px,env(safe-area-inset-bottom));padding-left:16px;}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;}
+.logo{height:58px;width:auto;object-fit:contain;}
+.home-link{margin-top:14px;font-family:"Meta Language",Arial,sans-serif;font-size:20px;line-height:1;color:#fff;text-decoration:none;opacity:0.95;transition:transform .18s ease,opacity .18s ease;cursor:pointer;}
+.home-link:hover{transform:scale(1.04);opacity:1;}
+.home-link:active{transform:scale(.96);}
+.title-row{margin-top:78px;display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;}
+.page-title{font-family:"Meta Language",Arial,sans-serif;font-size:34px;line-height:1;letter-spacing:0.02em;}
+.page-subtitle{font-family:"Meta Language",Arial,sans-serif;font-size:14px;line-height:1;opacity:0.9;padding-bottom:4px;}
+.prompt-box{width:100%;height:236px;margin-top:68px;border:2px solid rgba(255,255,255,0.92);border-radius:42px;background:#000;padding:28px 32px;outline:none;resize:none;color:#fff;font-family:"Meta Language",Arial,sans-serif;font-size:18px;line-height:1.2;}
+.prompt-box::placeholder{color:rgba(255,255,255,0.42);}
+.content-row{margin-top:60px;display:grid;grid-template-columns:1fr 1px 1fr;column-gap:26px;align-items:stretch;}
+.vertical-divider{width:1px;background:rgba(255,255,255,0.86);min-height:580px;}
+.column-title{font-family:"Meta Language",Arial,sans-serif;font-size:18px;line-height:1;margin-left:22px;margin-bottom:18px;}
+.reference-slot{width:100%;height:474px;border:2px solid rgba(255,255,255,0.92);border-radius:42px;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;transition:transform .18s ease,opacity .18s ease;}
+.reference-slot:hover{transform:translateY(-2px);}
+.reference-slot:active{transform:scale(.98);}
+.reference-slot input{display:none;}
+.reference-plus{font-size:88px;line-height:1;font-weight:300;color:#fff;opacity:0.95;transform:translateY(-6px);user-select:none;}
+.reference-preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+.reference-slot.has-file .reference-preview{display:block;}
+.reference-slot.has-file .reference-plus{display:none;}
+.remove-btn{position:absolute;top:10px;right:10px;width:28px;height:28px;background:rgba(0,0,0,.75);border:none;border-radius:50%;color:#fff;font-size:18px;line-height:1;cursor:pointer;display:none;z-index:10;align-items:center;justify-content:center;}
+.reference-slot.has-file .remove-btn{display:flex;}
+.progress-overlay{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px;}
+.progress-overlay.open{display:flex;}
+.progress-stage{font-family:'Courier New',monospace;font-size:13px;color:#3dff6e;margin-bottom:24px;letter-spacing:0.06em;text-align:center;}
+.progress-bar-wrap{width:100%;max-width:280px;height:4px;background:#1a1a1a;border-radius:2px;}
+.progress-bar-fill{height:4px;background:#3dff6e;border-radius:2px;transition:width .4s ease;width:0%;}
+.progress-label{font-family:'Courier New',monospace;font-size:10px;color:#444;margin-top:10px;letter-spacing:0.05em;}
+.chosen-side{display:flex;flex-direction:column;align-items:center;}
+.chosen-model{margin-top:126px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.chosen-avatar{width:124px;height:124px;border-radius:50%;object-fit:cover;display:block;background:#222;}
+.chosen-name{margin-top:14px;font-family:"Meta Language",Arial,sans-serif;font-size:20px;line-height:1;}
+.generate-wrap{margin-top:150px;display:flex;justify-content:center;width:100%;}
+.generate-btn{width:205px;max-width:100%;display:block;object-fit:contain;cursor:pointer;transition:transform .18s ease;}
+.generate-btn:hover{transform:scale(1.04);}
+.generate-btn:active{transform:scale(.97);}
+.status-msg{margin-top:16px;text-align:center;font-family:"Meta Language",Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.6);min-height:18px;}
+@media(max-width:430px){
+.wrapper{background:#000;}.app{border-left:none;border-right:none;}
+.logo{height:52px;}.home-link{font-size:18px;margin-top:12px;}
+.title-row{margin-top:72px;gap:6px;}.page-title{font-size:30px;}.page-subtitle{font-size:12px;padding-bottom:3px;}
+.prompt-box{height:232px;margin-top:58px;padding:22px 24px;font-size:17px;border-radius:34px;}
+.content-row{margin-top:54px;column-gap:20px;}.vertical-divider{min-height:548px;}
+.column-title{font-size:16px;margin-left:18px;margin-bottom:16px;}
+.reference-slot{height:440px;border-radius:34px;}.reference-plus{font-size:80px;}
+.chosen-model{margin-top:122px;}.chosen-avatar{width:112px;height:112px;}
+.chosen-name{font-size:18px;margin-top:12px;}.generate-wrap{margin-top:144px;}.generate-btn{width:188px;}
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<main class="app">
+  <div class="topbar">
+    <img src="assets/famous-logo.svg" class="logo" alt="famous">
+    <span class="home-link" onclick="location.href='create_video.html'">HOME</span>
+  </div>
+  <div class="title-row">
+    <h1 class="page-title">FACE REPLACEMENT</h1>
+    <div class="page-subtitle">/VIDEO GENERATION</div>
+  </div>
+  <textarea class="prompt-box" id="promptBox" placeholder="TEXT YOUR PROMPT..."></textarea>
+  <section class="content-row">
+    <div class="left-side">
+      <div class="column-title">VIDEO REFERENCE</div>
+      <label class="reference-slot" id="referenceSlot">
+        <input type="file" id="referenceInput" accept="image/*,video/*">
+        <span class="reference-plus">+</span>
+        <img class="reference-preview" id="referencePreview" alt="Preview">
+        <button class="remove-btn" onclick="clearSlot(event)">×</button>
+      </label>
+    </div>
+    <div class="vertical-divider"></div>
+    <div class="chosen-side">
+      <div class="column-title">CHOSEN MODEL</div>
+      <div class="chosen-model">
+        <img id="chosenAvatar" class="chosen-avatar" src="assets/meilin2.jpg" alt="Model">
+        <div class="chosen-name" id="chosenName">—</div>
+      </div>
+      <div class="generate-wrap">
+        <img src="assets/generate button.png" class="generate-btn" id="generateBtn" alt="Generate">
+      </div>
+    </div>
+  </section>
+  <div class="status-msg" id="statusMsg"></div>
+</main>
+</div>
+
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-stage" id="progressStage">PREPARING...</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">0%</div>
+</div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if(tg){ tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor('#000000'); tg.setBackgroundColor && tg.setBackgroundColor('#000000'); }
+function getInitData(){ return (tg && tg.initData) ? tg.initData : ''; }
+
+// Load chosen model from sessionStorage
+const modelId = sessionStorage.getItem('selectedModelId') || '';
+const modelName = sessionStorage.getItem('selectedModelName') || '—';
+const modelPreview = sessionStorage.getItem('selectedModelPreview') || '';
+document.getElementById('chosenName').textContent = modelName.toUpperCase();
+if(modelPreview){ document.getElementById('chosenAvatar').src = modelPreview; }
+document.getElementById('chosenAvatar').onerror = () => { document.getElementById('chosenAvatar').src = 'assets/meilin2.jpg'; };
+
+function clearSlot(event){
+  event.preventDefault(); event.stopPropagation();
+  refInput.value = '';
+  refPreview.src = '';
+  refSlot.classList.remove('has-file');
+  uploadedPath = '';
+}
+
+function showProgress(stage, pct){
+  document.getElementById('progressOverlay').classList.add('open');
+  document.getElementById('progressStage').textContent = stage;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '%';
+}
+
+// File preview
+const refInput = document.getElementById('referenceInput');
+const refSlot = document.getElementById('referenceSlot');
+const refPreview = document.getElementById('referencePreview');
+let uploadedPath = '';
+
+refInput.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if(!file){ refPreview.src=''; refSlot.classList.remove('has-file'); return; }
+  if(file.type.startsWith('image/')){
+    const reader = new FileReader();
+    reader.onload = e => { refPreview.src = e.target.result; refSlot.classList.add('has-file'); };
+    reader.readAsDataURL(file);
+  } else {
+    refSlot.classList.add('has-file');
+    refPreview.src = '';
+  }
+});
+
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  const prompt = document.getElementById('promptBox').value.trim();
+  const statusMsg = document.getElementById('statusMsg');
+  const file = refInput.files && refInput.files[0];
+  if(!file){ statusMsg.textContent = 'Please add a video or image reference'; return; }
+  showProgress('UPLOADING...', 20);
+  try{
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/api/upload', {method:'POST', body:fd, headers:{'X-Telegram-Init-Data': getInitData()}});
+    const data = await res.json();
+    uploadedPath = data.path || '';
+  }catch(e){ statusMsg.textContent = 'Upload error'; return; }
+  showProgress('SENDING TO BOT...', 90);
+  if(tg && tg.sendData){
+    tg.sendData(JSON.stringify({action:'video_face_swap', model_id:modelId, model_name:modelName, prompt, video_path:uploadedPath}));
+  } else { statusMsg.textContent = 'Sent! (test mode)'; }
+});
+</script>
+<script src="components/GenerationWidget.js"></script>
+<script src="components/famous.js"></script>
+</body>
+</html>

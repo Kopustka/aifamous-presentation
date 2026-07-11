@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>famous — Videos</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="components/mockdata.js"></script>
+<link rel="stylesheet" href="components/famous.css">
+<link rel="stylesheet" href="components/page_transitions.css">
+<script src="components/page_transitions.js"></script>
+<style>
+/* ── Videos grid ──────────────────────────────────── */
+.all-videos-grid{padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* ── Models grid ──────────────────────────────────── */
+.all-models-grid{padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.model-tile{position:relative;aspect-ratio:3/4;border-radius:20px;overflow:hidden;cursor:pointer;background:var(--panel);border:1px solid var(--line);transition:transform .3s;}
+.model-tile:hover{transform:translateY(-2px);}
+.model-tile img{width:100%;height:100%;object-fit:cover;display:block;}
+.model-tile::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.85) 100%);pointer-events:none;}
+.model-tile .mt-name{position:absolute;bottom:10px;left:12px;right:12px;font-family:var(--font-heavy);font-size:18px;letter-spacing:-0.02em;color:#fff;z-index:2;line-height:1;}
+.model-tile .mt-sub{position:absolute;bottom:32px;left:12px;font-family:var(--font-mono);font-size:9px;color:var(--brand);letter-spacing:0.06em;z-index:2;font-weight:700;}
+.model-tile.add-tile{border:1.5px dashed rgba(255,255,255,0.2);background:rgba(255,255,255,0.02);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-dim);}
+.model-tile.add-tile::after{display:none;}
+.model-tile.add-tile:hover{border-color:var(--brand);color:var(--brand);background:rgba(61,255,110,0.05);}
+.model-tile.add-tile .add-plus{width:46px;height:46px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:200;}
+.model-tile.add-tile .add-lbl{font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;}
+
+/* ── Privacy sheet ────────────────────────────────── */
+.priv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;backdrop-filter:blur(4px);}
+.priv-overlay.open{display:block;}
+.priv-sheet{position:fixed;bottom:0;left:0;right:0;background:#111114;border-radius:24px 24px 0 0;z-index:301;padding:0 20px max(24px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.priv-sheet.open{transform:translateY(0);}
+.priv-handle{width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:12px auto 18px;}
+.priv-title{font-family:var(--font-mono);font-size:10px;color:var(--text-mute);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;}
+.priv-vis{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;margin-bottom:12px;}
+.priv-vis.pub{background:rgba(61,255,110,0.08);border:1px solid rgba(61,255,110,0.25);}
+.priv-vis.prv{background:rgba(255,255,255,0.04);border:1px solid var(--line);}
+.priv-vis svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke-width:2;}
+.priv-vis.pub svg{stroke:var(--brand);}
+.priv-vis.prv svg{stroke:var(--text-dim);}
+.priv-vis-text{flex:1;}
+.priv-vis-title{font-size:14px;font-weight:600;color:#fff;}
+.priv-vis-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px;}
+.priv-toggle-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 14px;font-family:var(--font-mono);font-size:11px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;}
+.priv-share-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:14px;background:var(--brand);color:#000;border:none;font-family:var(--font-mono);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;letter-spacing:0.04em;}
+.priv-share-btn svg{width:15px;height:15px;stroke:#000;fill:none;stroke-width:2;}
+.priv-copy-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:14px;background:rgba(255,255,255,0.06);color:#fff;border:1px solid var(--line);font-family:var(--font-mono);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.04em;transition:border-color .2s,color .2s;}
+.priv-copy-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
+.priv-copy-btn.copied{border-color:var(--brand);color:var(--brand);}
+.priv-err{font-family:var(--font-mono);font-size:11px;color:#ff4d6d;text-align:center;padding:8px 0 4px;display:none;}
+.priv-err.show{display:block;}
+
+/* toast above privacy panel */
+.toast-container{z-index:500!important;}
+
+/* ── Load more ────────────────────────────────────── */
+.load-more-wrap{display:flex;justify-content:center;padding:0 20px 20px;}
+.load-more-btn{background:rgba(255,255,255,0.06);border:1px solid var(--line-2);border-radius:999px;padding:13px 44px;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:0.06em;transition:background .2s;}
+.load-more-btn:hover{background:rgba(255,255,255,0.1);}
+.load-more-btn:disabled{opacity:0.4;cursor:default;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="app">
+
+  <!-- Sub-header -->
+  <div class="sub-header">
+    <div class="back-btn" id="avBackBtn" onclick="avHandleBack()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+    </div>
+    <div class="sub-title" id="pageTitle">Videos</div>
+    <div class="sub-step" id="totalLabel">—</div>
+  </div>
+
+  <!-- Scrollable content -->
+  <div class="app-scroll">
+
+    <!-- List header -->
+    <div class="list-header">
+      <div>
+        <div class="lh-title" id="sectionTitle">Your feed</div>
+        <div class="lh-count" id="sectionCount">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-chips" id="filterChips">
+      <div class="filter-chip" data-tab="models" onclick="switchTab('models',this)">Models</div>
+      <div class="filter-chip active" data-tab="videos" onclick="switchTab('videos',this)">Videos</div>
+    </div>
+
+    <!-- Videos section -->
+    <div id="videosSection">
+      <div class="all-videos-grid" id="videosGrid">
+        <div class="loading-ring" style="grid-column:1/-1"></div>
+      </div>
+      <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+        <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">Load more</button>
+      </div>
+    </div>
+
+    <!-- Models section -->
+    <div id="modelsSection" style="display:none">
+      <!-- Active model-generation banner (visible only when a model gen is running) -->
+      <div id="modelGenBanner" style="display:none;margin:0 20px 16px;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(61,255,110,0.10),rgba(61,255,110,0.02));border:1px solid rgba(61,255,110,0.25);cursor:pointer;transition:border-color .2s;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(61,255,110,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--brand);">
+            <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;animation:mgb-spin 1.6s linear infinite"><path d="M21 12a9 9 0 1 1-6.2-8.55"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--brand);letter-spacing:0.12em;font-weight:700;text-transform:uppercase">Generating model</div>
+            <div id="mgbName" style="font-family:var(--font-heavy);font-size:16px;color:#fff;letter-spacing:-0.02em;line-height:1.1;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:5px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;">
+                <div id="mgbBarFill" style="height:100%;background:linear-gradient(90deg,var(--brand),#7dff9a);width:0%;transition:width .4s;"></div>
+              </div>
+              <div id="mgbPct" style="font-family:var(--font-mono);font-size:10px;color:var(--brand);font-weight:700;letter-spacing:0.04em">0%</div>
+            </div>
+            <div id="mgbStage" style="font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);letter-spacing:0.04em;margin-top:4px">Initializing...</div>
+          </div>
+          <div style="color:var(--brand);flex-shrink:0;">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+      </div>
+      <style>@keyframes mgb-spin{to{transform:rotate(360deg);}}</style>
+
+      <div class="all-models-grid" id="modelsGrid">
+        <div class="loading-ring" style="grid-column:1/-1"></div>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-btn" onclick="location.href='main.html'">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V11z"/></svg>
+      <div class="n-label">Home</div>
+    </div>
+    <div class="nav-btn" id="navModels" onclick="switchTab('models',null)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+      <div class="n-label">Models</div>
+    </div>
+    <div class="nav-center" onclick="location.href='create_video.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-btn active" id="navVideos" onclick="switchTab('videos',null)">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <div class="n-label">Videos</div>
+    </div>
+    <div class="nav-btn" onclick="location.href='profile.html'">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <div class="n-label">Profile</div>
+    </div>
+  </nav>
+</div>
+</div>
+
+<!-- Video modal -->
+<div class="video-modal" id="videoModal">
+  <div class="vm-header">
+    <div class="vm-close" onclick="closeVideoModal()">
+      <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </div>
+    <div class="vm-share" id="vmShareBtn" onclick="openPrivacyPanel()">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </div>
+  </div>
+  <div class="vm-player" id="vmPlayer"></div>
+  <div class="vm-footer" id="vmFooter"></div>
+</div>
+
+<!-- Privacy panel -->
+<div class="priv-overlay" id="privOverlay" onclick="closePrivacyPanel()"></div>
+<div class="priv-sheet" id="privSheet">
+  <div class="priv-handle"></div>
+  <div class="priv-title">Video privacy</div>
+  <div id="privStatus"></div>
+  <div class="priv-err" id="privErr">Failed to update. Try again.</div>
+  <div id="privActions"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"><div class="t-icon"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div><span id="toastMsg">Done</span></div></div>
+
+<script>
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor('#070707');tg.setBackgroundColor&&tg.setBackgroundColor('#070707');}
+function getInitData(){return(tg&&tg.initData)?tg.initData:'';}
+
+// После отказа от коллаб-инвайта back-стрелка ведёт обратно к той модели.
+// Считываем один раз и очищаем — повторно не сработает.
+let _avBackToModel=null;
+try{
+  _avBackToModel=sessionStorage.getItem('back_to_model_id');
+  if(_avBackToModel) sessionStorage.removeItem('back_to_model_id');
+}catch(e){}
+function avHandleBack(){
+  if(_avBackToModel){
+    location.href='model_detail.html?id='+_avBackToModel;
+    return;
+  }
+  history.back();
+}
+
+function showToast(msg,err=false){
+  const t=document.getElementById('toast'),m=document.getElementById('toastMsg');
+  m.textContent=msg;t.style.borderColor=err?'rgba(255,77,109,0.35)':'rgba(61,255,110,0.3)';
+  t.querySelector('.t-icon').style.background=err?'var(--danger)':'var(--brand)';
+  t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+let currentTab='videos', videoOffset=0, VIDEO_LIMIT=12, videoTotal=0, loading=false;
+
+function switchTab(tab, chipEl){
+  currentTab=tab;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  if(chipEl) chipEl.classList.add('active');
+  else document.querySelector(`.filter-chip[data-tab="${tab}"]`)?.classList.add('active');
+
+  document.getElementById('navVideos').classList.toggle('active',tab==='videos');
+  document.getElementById('navModels').classList.toggle('active',tab==='models');
+  document.getElementById('videosSection').style.display=tab==='videos'?'block':'none';
+  document.getElementById('modelsSection').style.display=tab==='models'?'block':'none';
+
+  if(tab==='videos'){
+    document.getElementById('pageTitle').textContent='Videos';
+    document.getElementById('sectionTitle').textContent='Your feed';
+    loadVideos(true);
+  } else {
+    document.getElementById('pageTitle').textContent='Models';
+    document.getElementById('sectionTitle').textContent='Your cast';
+    loadModels();
+    refreshModelGenBanner();
+  }
+}
+
+/* ── Videos ──────────────────────────────────────── */
+let currentItem=null;
+function fmtDate(s){return s?s.slice(0,10):'';}
+function modeBadge(mode){return mode?mode.replace(/_/g,' '):'gen';}
+
+async function loadVideos(reset=false){
+  if(loading) return;
+  loading=true;
+  const grid=document.getElementById('videosGrid'), wrap=document.getElementById('loadMoreWrap'), btn=document.getElementById('loadMoreBtn');
+  if(reset){videoOffset=0;grid.innerHTML='<div class="loading-ring" style="grid-column:1/-1"></div>';wrap.style.display='none';}
+  if(btn) btn.disabled=true;
+  try{
+    const res=await fetch(`/api/videos?offset=${videoOffset}&limit=${VIDEO_LIMIT}`,{headers:{'X-Telegram-Init-Data':getInitData()}});
+    const data=await res.json(); const items=data.items||[]; videoTotal=data.total||0;
+    if(reset) grid.innerHTML='';
+    if(!items.length&&videoOffset===0){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No generated content yet</div>';}
+    else{
+      items.forEach(item=>{
+        const card=document.createElement('div'); card.className='video-card';
+        const mode=modeBadge(item.mode), date=fmtDate(item.finished_at);
+        card.innerHTML=`
+          <video src="${item.video_url}" autoplay muted loop playsinline></video>
+          <div class="v-top">
+            <span class="v-badge">${mode}</span>
+            <span class="v-duration">${date}</span>
+          </div>
+          <div class="v-bottom">
+            <div class="v-model">
+              <div class="m-av" style="background-image:url('${item.model_preview_url||''}')"></div>
+              ${item.model_name||''}
+            </div>
+          </div>`;
+        card.addEventListener('click',()=>openVideoModal(item));
+        grid.appendChild(card);
+      });
+      videoOffset+=items.length;
+    }
+    document.getElementById('sectionCount').textContent=videoTotal+' videos total';
+    document.getElementById('totalLabel').textContent=videoTotal+' TOTAL';
+    const hasMore=videoOffset<videoTotal;
+    wrap.style.display=hasMore?'flex':'none';
+    if(btn) btn.disabled=false;
+  }catch(e){
+    if(videoOffset===0) document.getElementById('videosGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1">No generated content yet</div>';
+  }
+  loading=false;
+}
+function loadMore(){loadVideos(false);}
+
+/* ── Active model-generation banner ─────────────────── */
+let _mgbPoll = null;
+const MGB_STAGE_DESCS = {
+  'INITIALIZING':     'Initializing...',
+  'UPLOADING PHOTOS': 'Uploading photos',
+  'GENERATING IMAGE': 'Generating image',
+  'GENERATING BIO':   'Writing biography',
+  'SAVING MODEL':     'Saving model',
+  'FINALIZING':       'Finalizing',
+};
+
+function _mgbHide(){
+  const b=document.getElementById('modelGenBanner');
+  if(b) b.style.display='none';
+  if(_mgbPoll){ clearInterval(_mgbPoll); _mgbPoll=null; }
+}
+
+function _mgbShowFromState(saved){
+  const b=document.getElementById('modelGenBanner');
+  if(!b) return;
+  document.getElementById('mgbName').textContent=(saved.model_name||'Generating model').toUpperCase();
+  b.style.display='block';
+  b.onclick=()=>{ location.href='create_model.html'; };
+}
+
+async function _mgbPollOnce(genId){
+  try{
+    const r=await fetch('/api/generation/'+genId+'/status',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!r.ok) return;
+    const d=await r.json();
+    const stage=d.current_stage||'INITIALIZING';
+    const pct=Math.max(0,Math.min(100,Number(d.stage_progress||0)));
+    document.getElementById('mgbBarFill').style.width=pct+'%';
+    document.getElementById('mgbPct').textContent=pct+'%';
+    document.getElementById('mgbStage').textContent=MGB_STAGE_DESCS[stage]||stage;
+    if(d.status==='success'){
+      // Завершилось — снимаем баннер, обновляем сетку моделей
+      try{ sessionStorage.removeItem('famous_active_gen'); }catch(e){}
+      _mgbHide();
+      loadModels();
+    } else if(d.status==='error'){
+      _mgbHide();
+      try{ sessionStorage.removeItem('famous_active_gen'); }catch(e){}
+    }
+  }catch(e){}
+}
+
+function refreshModelGenBanner(){
+  let saved=null;
+  try{ saved=JSON.parse(sessionStorage.getItem('famous_active_gen')||'null'); }catch(e){}
+  if(!saved||saved.type!=='model'||!saved.gen_id){ _mgbHide(); return; }
+  _mgbShowFromState(saved);
+  _mgbPollOnce(saved.gen_id);
+  if(!_mgbPoll){ _mgbPoll=setInterval(()=>_mgbPollOnce(saved.gen_id), 3000); }
+}
+
+/* ── Models ──────────────────────────────────────── */
+async function loadModels(){
+  const grid=document.getElementById('modelsGrid');
+  grid.innerHTML='<div class="loading-ring" style="grid-column:1/-1"></div>';
+  try{
+    const res=await fetch('/api/models',{headers:{'X-Telegram-Init-Data':getInitData()}});
+    if(!res.ok) throw new Error();
+    const models=await res.json();
+    document.getElementById('sectionCount').textContent=models.length+' models active';
+    document.getElementById('totalLabel').textContent=models.length+' ACTIVE';
+    grid.innerHTML='';
+    models.forEach(m=>{
+      const tile=document.createElement('div'); tile.className='model-tile';
+      tile.innerHTML=`
+        ${m.preview_url?`<img src="${m.preview_url}" alt="${m.name}" onerror="this.style.opacity=0">`:''}
+        <div class="mt-sub">${m.status||'ACTIVE'}</div>
+        <div class="mt-name">${m.name}</div>`;
+      tile.addEventListener('click',()=>location.href='model_detail.html?id='+m.id);
+      grid.appendChild(tile);
+    });
+    // Add new model tile
+    const addTile=document.createElement('div'); addTile.className='model-tile add-tile';
+    addTile.innerHTML='<div class="add-plus">+</div><div class="add-lbl">New Model</div>';
+    addTile.onclick=()=>location.href='create_model.html';
+    grid.appendChild(addTile);
+  }catch(e){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No models yet</div>';
+  }
+}
+
+/* ── Video modal ─────────────────────────────────── */
+let _playBtnTimer=null;
+function _scheduleHidePlayBtn(){
+  clearTimeout(_playBtnTimer);
+  _playBtnTimer=setTimeout(()=>{
+    const btn=document.querySelector('#vmPlayer .vm-big-play');
+    if(btn) btn.classList.add('hidden');
+  },2000);
+}
+function _showPlayBtn(){
+  const btn=document.querySelector('#vmPlayer .vm-big-play');
+  if(btn) btn.classList.remove('hidden');
+  _scheduleHidePlayBtn();
+}
+function openVideoModal(item){
+  currentItem=item;
+  const player=document.getElementById('vmPlayer'), footer=document.getElementById('vmFooter');
+  const mode=modeBadge(item.mode);
+  player.innerHTML=`
+    <video src="${item.video_url}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div class="vm-model-chip">
+      <div class="mc-av" style="background-image:url('${item.model_preview_url||''}')"></div>
+      <span class="mc-name">${(item.model_name||'').toUpperCase()}</span>
+    </div>
+    <div class="vm-big-play" data-playing="1" onclick="toggleVmPlay(this)"><svg viewBox="0 0 24 24" style="width:28px;height:28px"><rect x="6" y="5" width="4" height="14" fill="#fff"/><rect x="14" y="5" width="4" height="14" fill="#fff"/></svg></div>
+    <div class="vm-progress"><div class="vm-progress-fill" id="vmProgFill"></div></div>`;
+  player.addEventListener('click',e=>{if(!e.target.closest('.vm-big-play')) _showPlayBtn();});
+  footer.innerHTML=`
+    <div class="vm-title">${mode}${item.model_name?' · '+item.model_name:''}</div>
+    ${item.prompt?`<div class="vm-desc">${item.prompt}</div>`:''}
+    <div class="vm-actions">
+      <div class="vm-action" onclick="shareVideo()">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share
+      </div>
+      <a class="vm-action primary" href="${item.video_url}" download>
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save
+      </a>
+      <div class="vm-action" onclick="deleteVideo('${item.id}')">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Delete
+      </div>
+    </div>`;
+  document.getElementById('videoModal').classList.add('open');
+  _scheduleHidePlayBtn();
+}
+function closeVideoModal(){
+  clearTimeout(_playBtnTimer);
+  document.getElementById('videoModal').classList.remove('open');
+}
+function toggleVmPlay(btn){
+  const vid=document.querySelector('#vmPlayer video');
+  const fill=document.getElementById('vmProgFill'), playing=btn.dataset.playing==='1';
+  if(playing){
+    btn.dataset.playing='0';
+    btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#fff;margin-left:3px"><polygon points="6 4 20 12 6 20"/></svg>';
+    if(fill) fill.classList.remove('vm-progress-fill-anim');
+    if(vid) vid.pause();
+  } else {
+    btn.dataset.playing='1';
+    btn.innerHTML='<svg viewBox="0 0 24 24" style="width:28px;height:28px"><rect x="6" y="5" width="4" height="14" fill="#fff"/><rect x="14" y="5" width="4" height="14" fill="#fff"/></svg>';
+    if(fill){fill.style.width='0%';void fill.offsetWidth;fill.classList.add('vm-progress-fill-anim');}
+    if(vid) vid.play();
+  }
+  _scheduleHidePlayBtn();
+}
+function shareVideo(){
+  if(!currentItem) return;
+  if(!currentItem.is_public){openPrivacyPanel();return;}
+  doShareVideo();
+}
+function doShareVideo(){
+  if(!currentItem) return;
+  const url=location.origin+'/video_share.html?id='+currentItem.id;
+  const tgShare='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent('Check out this AI-generated video 🎬');
+  if(tg&&tg.openLink){tg.openLink(tgShare);return;}
+  window.open(tgShare,'_blank');
+}
+function copyVideoLink(){
+  if(!currentItem) return;
+  const url=location.origin+'/video_share.html?id='+currentItem.id;
+  const btn=document.getElementById('privCopyBtn');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>{
+      showToast('Link copied!');
+      if(btn){btn.classList.add('copied');setTimeout(()=>btn.classList.remove('copied'),1500);}
+    });
+  }
+}
+function openPrivacyPanel(){
+  if(!currentItem) return;
+  renderPrivacyPanel();
+  document.getElementById('privOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('privSheet').classList.add('open'),10);
+}
+function closePrivacyPanel(){
+  document.getElementById('privSheet').classList.remove('open');
+  setTimeout(()=>document.getElementById('privOverlay').classList.remove('open'),300);
+}
+function renderPrivacyPanel(){
+  const pub=!!currentItem.is_public;
+  document.getElementById('privStatus').innerHTML=`
+    <div class="priv-vis ${pub?'pub':'prv'}">
+      <svg viewBox="0 0 24 24">
+        ${pub
+          ?'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'
+          :'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'}
+      </svg>
+      <div class="priv-vis-text">
+        <div class="priv-vis-title">${pub?'Public':'Private'}</div>
+        <div class="priv-vis-sub">${pub?'Anyone with the link can view':'Only you can see this video'}</div>
+      </div>
+      <button class="priv-toggle-btn" onclick="toggleVideoVisibility()">${pub?'Make private':'Make public'}</button>
+    </div>`;
+  document.getElementById('privActions').innerHTML=pub?`
+    <button class="priv-share-btn" onclick="doShareVideo();closePrivacyPanel()">
+      <svg viewBox="0 0 24 24"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7a2.25 2.25 0 0 0 .126 4.154l4.371 1.457 1.457 4.371a2.25 2.25 0 0 0 4.154.126l7-16.5a2.242 2.242 0 0 0-.586-2.823z" fill="#000" stroke="none"/></svg>
+      Share on Telegram
+    </button>
+    <button class="priv-copy-btn" id="privCopyBtn" onclick="copyVideoLink()">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Copy link
+    </button>`:'';
+}
+async function toggleVideoVisibility(){
+  if(!currentItem) return;
+  const newVal=!currentItem.is_public;
+  const btn=document.querySelector('#privStatus .priv-toggle-btn');
+  const errEl=document.getElementById('privErr');
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  if(errEl) errEl.classList.remove('show');
+  try{
+    const res=await fetch('/api/video/'+currentItem.id+'/visibility',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Telegram-Init-Data':getInitData()},
+      body:JSON.stringify({is_public:newVal}),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    currentItem.is_public=newVal;
+    renderPrivacyPanel();
+    showToast(newVal?'Video is now public':'Video is now private');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=newVal?'Make public':'Make private';}
+    if(errEl) errEl.classList.add('show');
+  }
+}
+async function deleteVideo(id){
+  if(!confirm('Delete this video?')) return;
+  try{
+    const res=await fetch('/api/video/'+id+'/delete',{method:'POST',headers:{'X-Telegram-Init-Data':getInitData()}});
+    const d=await res.json();
+    if(d.ok){closeVideoModal();loadVideos(true);showToast('Deleted');}
+  }catch(e){}
+}
+document.getElementById('videoModal').addEventListener('click',function(e){if(e.target===this)closeVideoModal();});
+
+/* ── Boot ────────────────────────────────────────── */
+const urlTab=new URLSearchParams(location.search).get('tab');
+if(urlTab==='models') switchTab('models',null);
+else switchTab('videos',null);
+
+// Re-fetch on return. Uses a sessionStorage flag set by create_model.html /
+// the background GenerationWidget — covers bfcache, fresh reload, and
+// WebViews that don't fire pageshow with persisted=true.
+function famousRefreshIfDirty(){
+  // Баннер активной модели обновляем при любом возврате на страницу
+  if(currentTab==='models') refreshModelGenBanner();
+  try{
+    if(sessionStorage.getItem('famous_models_dirty')!=='1') return;
+    sessionStorage.removeItem('famous_models_dirty');
+  }catch(e){ return; }
+  if(currentTab==='models') loadModels();
+  else loadVideos(true);
+}
+window.addEventListener('pageshow',famousRefreshIfDirty);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) famousRefreshIfDirty(); });
+</script>
+<script src="components/famous.js"></script>
+<script src="components/demo_slide_guard.js"></script>
+</body>
+</html>
